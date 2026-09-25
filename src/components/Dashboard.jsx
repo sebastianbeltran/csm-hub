@@ -74,18 +74,13 @@ export default function Dashboard({ events }) {
 
   return (
     <div className="space-y-4">
-      {/* Welcome banner */}
-      <div className="bg-gradient-to-r from-green-800 to-green-700 rounded-2xl px-6 py-4 flex items-center justify-between">
-        <div>
-          <p className="text-white font-bold text-base">{greeting}, docentes</p>
-          <p className="text-green-200 text-sm mt-0.5">
-            {format(new Date(), "EEEE d 'de' MMMM yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase())}
-          </p>
-        </div>
+      {/* Welcome bar */}
+      <div className="flex items-center justify-between px-1">
+        <p className="text-slate-600 font-semibold">{greeting}, docentes</p>
         {urgentCount > 0 && (
-          <div className="flex items-center gap-2 bg-white/20 rounded-xl px-3 py-2">
-            <AlertCircle size={15} className="text-white" />
-            <span className="text-white text-sm font-medium">{urgentCount} urgente{urgentCount > 1 ? 's' : ''} hoy</span>
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-1.5">
+            <AlertCircle size={14} className="text-red-500" />
+            <span className="text-red-600 text-sm font-semibold">{urgentCount} urgente{urgentCount > 1 ? 's' : ''} próximos</span>
           </div>
         )}
       </div>
@@ -104,8 +99,10 @@ export default function Dashboard({ events }) {
               <ViewBtn active={view === 'month'} onClick={() => setView('month')} icon={<CalendarRange size={13} />} label="Mes" />
             </div>
 
-            {/* Period label */}
-            <span className="flex-1 text-sm font-medium text-slate-600 hidden sm:block truncate">{periodLabel}</span>
+            {/* Period label — solo en semana/mes */}
+            {view !== 'day' && (
+              <span className="flex-1 text-sm font-medium text-slate-600 hidden sm:block truncate">{periodLabel}</span>
+            )}
 
             {/* Navigation */}
             <div className="flex items-center gap-1.5 ml-auto">
