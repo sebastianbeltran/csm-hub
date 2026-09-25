@@ -20,9 +20,7 @@ export default function Sidebar({ activeView, onNavigate, isOpen, onClose }) {
       `}>
         <div className="p-6 border-b border-slate-700/60">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 p-1">
-              <img src="/csm-logo.png" alt="CSM" className="w-full h-full object-contain" />
-            </div>
+            <img src="/csm-logo.png" alt="CSM" className="h-9 w-auto object-contain flex-shrink-0" />
             <div>
               <p className="font-bold text-white text-base leading-tight">Hub Docente</p>
               <p className="text-slate-400 text-xs">Colegio Santa María</p>
