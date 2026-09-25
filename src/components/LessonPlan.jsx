@@ -148,10 +148,17 @@ const exportToPDF = (filteredPlans, title, subtitle, subjectsList, groupBySubjec
   <div class="footer">Generado desde Hub Docente · Colegio Santa María · ${date}</div>
   </body></html>`
 
-  const win = window.open('', '_blank')
-  win.document.write(html)
-  win.document.close()
-  win.onload = () => { win.focus(); win.print() }
+  const iframe = document.createElement('iframe')
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0'
+  document.body.appendChild(iframe)
+  iframe.contentDocument.open()
+  iframe.contentDocument.write(html)
+  iframe.contentDocument.close()
+  iframe.onload = () => {
+    iframe.contentWindow.focus()
+    iframe.contentWindow.print()
+    setTimeout(() => document.body.removeChild(iframe), 2000)
+  }
 }
 
 export default function LessonPlan({ plans, subjects, onSave }) {
