@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import Dashboard from './components/Dashboard'
@@ -13,8 +13,12 @@ const VIEW_TITLES = {
   admin:     'Panel de Administración',
 }
 
+const isAdminRoute = () => window.location.pathname === '/admin'
+
 export default function App() {
-  const [activeView, setActiveView] = useState('dashboard')
+  const [activeView, setActiveView] = useState(
+    isAdminRoute() ? 'admin' : 'dashboard'
+  )
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { events, plans, subjects, loading, error, addEvent, deleteEvent, savePlan, addSubject, deleteSubject } = useStore()
 
@@ -53,6 +57,24 @@ export default function App() {
     )
   }
 
+  // Ruta /admin — sin sidebar, solo el panel protegido con contraseña
+  if (isAdminRoute()) {
+    return (
+      <div className="flex h-screen bg-slate-100 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <Header activeView="admin" viewTitles={VIEW_TITLES} onMenuToggle={() => {}} eventCount={0} />
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <AdminPanel
+              events={events} subjects={subjects}
+              onAddEvent={addEvent} onDeleteEvent={deleteEvent}
+              onAddSubject={addSubject} onDeleteSubject={deleteSubject}
+            />
+          </main>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden">
       <Sidebar activeView={activeView} onNavigate={navigate} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -61,13 +83,6 @@ export default function App() {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           {activeView === 'dashboard' && <Dashboard events={events} onDelete={deleteEvent} />}
           {activeView === 'plans'     && <LessonPlan plans={plans} subjects={subjects} onSave={savePlan} />}
-          {activeView === 'admin'     && (
-            <AdminPanel
-              events={events} subjects={subjects}
-              onAddEvent={addEvent} onDeleteEvent={deleteEvent}
-              onAddSubject={addSubject} onDeleteSubject={deleteSubject}
-            />
-          )}
         </main>
       </div>
     </div>

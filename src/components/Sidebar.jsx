@@ -1,9 +1,8 @@
-import { LayoutDashboard, BookOpen, ShieldCheck } from 'lucide-react'
+import { LayoutDashboard, BookOpen } from 'lucide-react'
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard',    icon: LayoutDashboard },
   { id: 'plans',     label: 'Plan Semanal', icon: BookOpen },
-  { id: 'admin',     label: 'Administrar',  icon: ShieldCheck },
 ]
 
 export default function Sidebar({ activeView, onNavigate, isOpen, onClose }) {
