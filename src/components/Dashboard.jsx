@@ -24,7 +24,7 @@ function relDate(dateStr) {
   try {
     const d = parseISO(dateStr)
     const days = differenceInDays(d, new Date())
-    if (isToday(d)) return { label: 'Hoy', chip: 'bg-indigo-600 text-white' }
+    if (isToday(d)) return { label: 'Hoy', chip: 'bg-green-700 text-white' }
     if (days === 1) return { label: 'Mañana', chip: 'bg-amber-500 text-white' }
     if (days > 1 && days <= 7) return { label: `En ${days} días`, chip: 'bg-slate-200 text-slate-600' }
     if (days > 7) return { label: format(d, "d MMM", { locale: es }), chip: 'bg-slate-100 text-slate-500' }
@@ -75,10 +75,10 @@ export default function Dashboard({ events, onDelete }) {
   return (
     <div className="space-y-4">
       {/* Welcome banner */}
-      <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-2xl px-6 py-4 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-green-800 to-green-700 rounded-2xl px-6 py-4 flex items-center justify-between">
         <div>
           <p className="text-white font-bold text-base">{greeting}, docentes</p>
-          <p className="text-indigo-200 text-sm mt-0.5">
+          <p className="text-green-200 text-sm mt-0.5">
             {format(new Date(), "EEEE d 'de' MMMM yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase())}
           </p>
         </div>
@@ -112,7 +112,7 @@ export default function Dashboard({ events, onDelete }) {
               <button
                 onClick={() => { setFocusDate(new Date()) }}
                 className={`px-3 py-1 text-xs rounded-lg font-semibold transition-colors ${
-                  isCurrentPeriod ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'
+                  isCurrentPeriod ? 'bg-green-700 text-white' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'
                 }`}
               >
                 Hoy
@@ -167,7 +167,7 @@ export default function Dashboard({ events, onDelete }) {
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <h3 className="font-semibold text-slate-800 text-sm">Próximas fechas</h3>
               {upcoming.length > 0 && (
-                <span className="bg-indigo-100 text-indigo-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                <span className="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
                   {upcoming.length}
                 </span>
               )}
@@ -230,19 +230,19 @@ function DayView({ date, events, onDelete }) {
     <div className="space-y-3">
       {/* Day header */}
       <div className={`rounded-2xl px-5 py-4 flex items-center justify-between ${
-        isToday(date) ? 'bg-indigo-600' : past ? 'bg-slate-200' : 'bg-white border border-slate-200'
+        isToday(date) ? 'bg-green-700' : past ? 'bg-slate-200' : 'bg-white border border-slate-200'
       }`}>
         <div>
           <p className={`text-4xl font-extrabold ${isToday(date) ? 'text-white' : past ? 'text-slate-400' : 'text-slate-800'}`}>
             {format(date, 'd')}
           </p>
-          <p className={`text-sm mt-0.5 ${isToday(date) ? 'text-indigo-200' : 'text-slate-400'}`}>
+          <p className={`text-sm mt-0.5 ${isToday(date) ? 'text-green-200' : 'text-slate-400'}`}>
             {format(date, "EEEE · MMMM yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase())}
           </p>
         </div>
         <div className="text-right">
           {isToday(date) && <span className="text-xs bg-white/20 text-white font-semibold px-3 py-1 rounded-full">Hoy</span>}
-          <p className={`text-sm mt-2 ${isToday(date) ? 'text-indigo-200' : 'text-slate-400'}`}>
+          <p className={`text-sm mt-2 ${isToday(date) ? 'text-green-200' : 'text-slate-400'}`}>
             {events.length === 0 ? 'Sin eventos' : `${events.length} evento${events.length > 1 ? 's' : ''}`}
           </p>
         </div>
@@ -321,17 +321,17 @@ function WeekView({ focusDate, events, onOpenModal, onDayClick }) {
             const past = isPast(day) && !today
             return (
               <div key={i} className={`border-r border-slate-100 last:border-r-0 min-h-[220px] flex flex-col ${
-                today ? 'bg-indigo-50/60' : past ? 'bg-slate-50/70' : 'bg-white'
+                today ? 'bg-green-50/60' : past ? 'bg-slate-50/70' : 'bg-white'
               }`}>
                 <button
                   onClick={() => onDayClick(day)}
-                  className={`p-2.5 pb-2 border-b text-left hover:opacity-75 transition-opacity ${today ? 'border-indigo-200' : 'border-slate-100'}`}
+                  className={`p-2.5 pb-2 border-b text-left hover:opacity-75 transition-opacity ${today ? 'border-green-200' : 'border-slate-100'}`}
                 >
-                  <p className={`text-[10px] font-bold uppercase tracking-wider ${today ? 'text-indigo-500' : past ? 'text-slate-300' : 'text-slate-400'}`}>
+                  <p className={`text-[10px] font-bold uppercase tracking-wider ${today ? 'text-green-600' : past ? 'text-slate-300' : 'text-slate-400'}`}>
                     {DAY_LABELS[i]}
                   </p>
                   <div className={`mt-1 w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold ${
-                    today ? 'bg-indigo-600 text-white' : past ? 'text-slate-300' : 'text-slate-700'
+                    today ? 'bg-green-700 text-white' : past ? 'text-slate-300' : 'text-slate-700'
                   }`}>
                     {format(day, 'd')}
                   </div>
@@ -388,11 +388,11 @@ function MonthView({ focusDate, events, onDayClick }) {
               key={i}
               onClick={() => onDayClick(day)}
               className={`min-h-[80px] p-1.5 border-r border-b border-slate-100 last:border-r-0 text-left transition-colors ${
-                today ? 'bg-indigo-50' : inMonth ? 'bg-white hover:bg-slate-50' : 'bg-slate-50/40 hover:bg-slate-100/60'
+                today ? 'bg-green-50' : inMonth ? 'bg-white hover:bg-slate-50' : 'bg-slate-50/40 hover:bg-slate-100/60'
               }`}
             >
               <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold mb-1 ${
-                today ? 'bg-indigo-600 text-white' : inMonth ? (past ? 'text-slate-300' : 'text-slate-700') : 'text-slate-300'
+                today ? 'bg-green-700 text-white' : inMonth ? (past ? 'text-slate-300' : 'text-slate-700') : 'text-slate-300'
               }`}>
                 {format(day, 'd')}
               </div>
@@ -434,7 +434,7 @@ function EventModal({ event, onClose, onDelete }) {
             <p className="text-sm text-slate-500 flex items-center gap-2">
               📅 {format(date, "EEEE d 'de' MMMM yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase())}
               {past && <span className="text-red-500 text-xs font-semibold bg-red-50 px-2 py-0.5 rounded-full">Vencido</span>}
-              {isToday(date) && <span className="text-indigo-600 text-xs font-semibold bg-indigo-50 px-2 py-0.5 rounded-full">Hoy</span>}
+              {isToday(date) && <span className="text-green-700 text-xs font-semibold bg-green-50 px-2 py-0.5 rounded-full">Hoy</span>}
             </p>
             {event.description && <p className="text-slate-600 text-sm bg-slate-50 rounded-xl p-3 leading-relaxed">{event.description}</p>}
             {event.priority === 'high' && <div className="text-red-600 bg-red-50 rounded-xl p-3 text-sm font-medium">⚠️ Alta prioridad — no olvidar</div>}
@@ -455,7 +455,7 @@ function ViewBtn({ active, onClick, icon, label }) {
     <button
       onClick={onClick}
       className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-        active ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+        active ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
       }`}
     >
       {icon}{label}

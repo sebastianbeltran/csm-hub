@@ -32,8 +32,8 @@ export default function Header({ activeView, viewTitles = {}, onMenuToggle, even
             </span>
           </div>
         )}
-        <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-          <span className="text-indigo-700 text-xs font-bold">AD</span>
+        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+          <span className="text-green-700 text-xs font-bold">AD</span>
         </div>
       </div>
     </header>

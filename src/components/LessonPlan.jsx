@@ -137,7 +137,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
             {GRADES.map(g => (
               <button key={g} onClick={() => setGrade(g)}
                 className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
-                  grade === g ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                  grade === g ? 'bg-white text-green-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                 }`}
               >{g}°</button>
             ))}
@@ -148,7 +148,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
         <div className="flex-1 min-w-[200px]">
           <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Materia</label>
           <select value={subjectId} onChange={e => setSubjectId(e.target.value)}
-            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-600">
             {gradeSubjects.length === 0
               ? <option value="">Sin materias — agregar desde Administrar</option>
               : gradeSubjects.map(s => <option key={s.id} value={s.id}>{s.label}</option>)
@@ -164,14 +164,14 @@ export default function LessonPlan({ plans, subjects, onSave }) {
               <ChevronLeft size={14} className="text-slate-500" />
             </button>
             <span className={`px-3 py-2 rounded-xl text-sm font-semibold border min-w-[170px] text-center ${
-              isCurrentWeek ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-200 text-slate-600'
+              isCurrentWeek ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-600'
             }`}>{weekLabel(weekStart)}</span>
             <button onClick={() => navWeek(1)} className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50">
               <ChevronRight size={14} className="text-slate-500" />
             </button>
             {!isCurrentWeek && (
               <button onClick={() => setWeekStart(getMonday(new Date()))}
-                className="px-2.5 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl border border-indigo-200">
+                className="px-2.5 py-2 text-xs font-bold text-green-700 hover:bg-green-50 rounded-xl border border-green-200">
                 Hoy
               </button>
             )}
@@ -211,7 +211,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
           </div>
           <button onClick={handleSave} disabled={!subjectId}
             className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-              saved ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              saved ? 'bg-emerald-600 text-white' : 'bg-green-700 text-white hover:bg-green-800'
             }`}>
             <Save size={14} /> {saved ? '✓ Guardado' : 'Guardar'}
           </button>
@@ -249,7 +249,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
                     </div>
                   )}
                   <div className="flex flex-wrap gap-1.5">
-                    {entry.evaluacion?.map(e => <span key={e} className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-semibold">{e}</span>)}
+                    {entry.evaluacion?.map(e => <span key={e} className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">{e}</span>)}
                     {entry.compTransversales?.map(c => <span key={c} className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-bold">{c}</span>)}
                   </div>
                   {entry.observaciones && (
@@ -270,9 +270,9 @@ export default function LessonPlan({ plans, subjects, onSave }) {
       {/* Form */}
       {subjectId ? (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 px-6 py-4">
+          <div className="bg-gradient-to-r from-green-800 to-green-700 px-6 py-4">
             <p className="text-white font-bold text-base">{currentSubject?.label} · {grade}°</p>
-            <p className="text-indigo-200 text-sm">{weekLabel(weekStart)}{isCurrentWeek ? ' · Semana actual' : ''}</p>
+            <p className="text-green-200 text-sm">{weekLabel(weekStart)}{isCurrentWeek ? ' · Semana actual' : ''}</p>
           </div>
           <div className="p-6 space-y-5">
             <Field label="Actividades semanales" required hint="Descripción de las actividades de la semana">
@@ -287,8 +287,8 @@ export default function LessonPlan({ plans, subjects, onSave }) {
                     <button key={opt} type="button" onClick={() => setField('evaluacion', toggleArr(form.evaluacion, opt))}
                       className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
                         form.evaluacion.includes(opt)
-                          ? 'bg-indigo-600 border-indigo-600 text-white'
-                          : 'bg-white border-slate-200 text-slate-400 hover:border-indigo-300'
+                          ? 'bg-green-700 border-green-700 text-white'
+                          : 'bg-white border-slate-200 text-slate-400 hover:border-green-300'
                       }`}>{opt}</button>
                   ))}
                 </div>
@@ -332,7 +332,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
             </Field>
             <div className="flex justify-end pt-2 border-t border-slate-100">
               <button onClick={handleSave} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                saved ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                saved ? 'bg-emerald-600 text-white' : 'bg-green-700 text-white hover:bg-green-800'
               }`}>
                 <Save size={15} /> {saved ? '✓ Guardado correctamente' : 'Guardar plan semanal'}
               </button>
@@ -349,7 +349,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
   )
 }
 
-const ta = "w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none leading-relaxed"
+const ta = "w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent resize-none leading-relaxed"
 
 function Field({ label, required, hint, children }) {
   return (

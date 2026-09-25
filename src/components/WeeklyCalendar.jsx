@@ -62,7 +62,7 @@ export default function WeeklyCalendar({ events, onDelete }) {
           <button
             onClick={goToday}
             className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
-              isCurrentPeriod ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              isCurrentPeriod ? 'bg-green-700 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
             }`}
           >
             Hoy
@@ -135,11 +135,11 @@ function DayView({ date, events, onOpenModal, onDelete }) {
     <div className="space-y-4">
       {/* Day header */}
       <div className={`rounded-2xl p-5 flex items-center justify-between ${
-        isToday(date) ? 'bg-indigo-600 text-white' : past ? 'bg-slate-200 text-slate-500' : 'bg-white border border-slate-200 text-slate-800'
+        isToday(date) ? 'bg-green-700 text-white' : past ? 'bg-slate-200 text-slate-500' : 'bg-white border border-slate-200 text-slate-800'
       }`}>
         <div>
           <p className={`text-3xl font-bold ${isToday(date) ? 'text-white' : ''}`}>{format(date, 'd')}</p>
-          <p className={`text-sm mt-0.5 ${isToday(date) ? 'text-indigo-200' : 'text-slate-500'}`}>
+          <p className={`text-sm mt-0.5 ${isToday(date) ? 'text-green-200' : 'text-slate-500'}`}>
             {format(date, "EEEE", { locale: es }).replace(/^\w/, c => c.toUpperCase())}
             {' · '}
             {format(date, "MMMM yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase())}
@@ -149,7 +149,7 @@ function DayView({ date, events, onOpenModal, onDelete }) {
           {isToday(date) && (
             <span className="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full">Hoy</span>
           )}
-          <p className={`text-sm mt-2 ${isToday(date) ? 'text-indigo-200' : 'text-slate-400'}`}>
+          <p className={`text-sm mt-2 ${isToday(date) ? 'text-green-200' : 'text-slate-400'}`}>
             {events.length === 0 ? 'Sin eventos' : `${events.length} evento${events.length > 1 ? 's' : ''}`}
           </p>
         </div>
@@ -239,17 +239,17 @@ function WeekView({ focusDate, events, onOpenModal, onDayClick }) {
 
             return (
               <div key={i} className={`border-r border-slate-100 last:border-r-0 min-h-[260px] flex flex-col ${
-                today ? 'bg-indigo-50/60' : past ? 'bg-slate-50/70' : 'bg-white'
+                today ? 'bg-green-50/60' : past ? 'bg-slate-50/70' : 'bg-white'
               }`}>
                 <button
                   onClick={() => onDayClick(day)}
-                  className={`p-3 pb-2 border-b text-left hover:opacity-80 transition-opacity ${today ? 'border-indigo-200' : 'border-slate-100'}`}
+                  className={`p-3 pb-2 border-b text-left hover:opacity-80 transition-opacity ${today ? 'border-green-200' : 'border-slate-100'}`}
                 >
                   <p className={`text-[11px] font-semibold uppercase tracking-wider ${
-                    today ? 'text-indigo-500' : past ? 'text-slate-300' : 'text-slate-400'
+                    today ? 'text-green-600' : past ? 'text-slate-300' : 'text-slate-400'
                   }`}>{DAY_LABELS[i]}</p>
                   <div className={`mt-1.5 w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold ${
-                    today ? 'bg-indigo-600 text-white' : past ? 'text-slate-300' : 'text-slate-700'
+                    today ? 'bg-green-700 text-white' : past ? 'text-slate-300' : 'text-slate-700'
                   }`}>
                     {format(day, 'd')}
                   </div>
@@ -319,11 +319,11 @@ function MonthView({ focusDate, events, onDayClick }) {
               key={i}
               onClick={() => onDayClick(day)}
               className={`min-h-[90px] p-2 border-r border-b border-slate-100 last:border-r-0 text-left transition-colors
-                ${today ? 'bg-indigo-50' : inMonth ? 'bg-white hover:bg-slate-50' : 'bg-slate-50/50 hover:bg-slate-100/50'}
+                ${today ? 'bg-green-50' : inMonth ? 'bg-white hover:bg-slate-50' : 'bg-slate-50/50 hover:bg-slate-100/50'}
               `}
             >
               <div className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold mb-1 ${
-                today ? 'bg-indigo-600 text-white' : inMonth ? (past ? 'text-slate-300' : 'text-slate-700') : 'text-slate-300'
+                today ? 'bg-green-700 text-white' : inMonth ? (past ? 'text-slate-300' : 'text-slate-700') : 'text-slate-300'
               }`}>
                 {format(day, 'd')}
               </div>
@@ -376,7 +376,7 @@ function EventModal({ event, onClose, onDelete }) {
               <span>📅</span>
               {format(date, "EEEE d 'de' MMMM yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase())}
               {past && <span className="text-red-500 text-xs font-semibold bg-red-50 px-2 py-0.5 rounded-full">Vencido</span>}
-              {isToday(date) && <span className="text-indigo-600 text-xs font-semibold bg-indigo-50 px-2 py-0.5 rounded-full">Hoy</span>}
+              {isToday(date) && <span className="text-green-700 text-xs font-semibold bg-green-50 px-2 py-0.5 rounded-full">Hoy</span>}
             </p>
             {event.description && (
               <p className="text-slate-600 text-sm bg-slate-50 rounded-xl p-3 leading-relaxed">{event.description}</p>
@@ -406,7 +406,7 @@ function ViewBtn({ active, onClick, icon, label }) {
     <button
       onClick={onClick}
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-        active ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
+        active ? 'bg-green-700 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
       }`}
     >
       {icon}{label}

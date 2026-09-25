@@ -35,7 +35,7 @@ export default function App() {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-100">
         <div className="text-center">
-          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-10 h-10 border-4 border-green-700 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-slate-500 text-sm font-medium">Cargando datos...</p>
         </div>
       </div>
@@ -49,7 +49,7 @@ export default function App() {
           <p className="text-2xl mb-3">⚠️</p>
           <p className="text-red-600 font-bold mb-2">Error de conexión</p>
           <p className="text-slate-500 text-sm">{error}</p>
-          <button onClick={() => window.location.reload()} className="mt-5 px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors">
+          <button onClick={() => window.location.reload()} className="mt-5 px-5 py-2 bg-green-700 text-white rounded-xl text-sm font-semibold hover:bg-green-800 transition-colors">
             Reintentar
           </button>
         </div>

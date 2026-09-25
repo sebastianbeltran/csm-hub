@@ -53,8 +53,8 @@ function PasswordGate({ onUnlock }) {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full max-w-sm text-center">
-        <div className="w-14 h-14 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <Lock size={22} className="text-indigo-600" />
+        <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Lock size={22} className="text-green-700" />
         </div>
         <h2 className="text-lg font-bold text-slate-800 mb-1">Panel de administración</h2>
         <p className="text-sm text-slate-400 mb-6">Ingresa la contraseña para continuar</p>
@@ -63,11 +63,11 @@ function PasswordGate({ onUnlock }) {
             type="password" value={pwd} onChange={e => setPwd(e.target.value)}
             placeholder="Contraseña"
             autoFocus
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-center font-semibold tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-center font-semibold tracking-widest focus:outline-none focus:ring-2 focus:ring-green-600"
           />
           {error && <p className="text-red-500 text-sm font-medium">Contraseña incorrecta</p>}
           <button type="submit"
-            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors">
+            className="w-full py-3 bg-green-700 text-white rounded-xl font-bold text-sm hover:bg-green-800 transition-colors">
             Entrar
           </button>
         </form>
@@ -126,7 +126,7 @@ function EventsTab({ events, onAdd, onUpdate, onDelete }) {
       <div className="lg:col-span-2">
         <Card
           title={editingId ? 'Editar evento' : 'Agregar evento'}
-          icon={<Calendar size={15} className={editingId ? 'text-amber-500' : 'text-indigo-500'} />}
+          icon={<Calendar size={15} className={editingId ? 'text-amber-500' : 'text-green-600'} />}
         >
           <form onSubmit={handleSubmit} className="space-y-4">
             <Field label="Título *">
@@ -161,7 +161,7 @@ function EventsTab({ events, onAdd, onUpdate, onDelete }) {
                   <X size={15} /> Cancelar
                 </button>
               )}
-              <button type="submit" className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-white rounded-xl font-bold text-sm transition-colors ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+              <button type="submit" className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-white rounded-xl font-bold text-sm transition-colors ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-700 hover:bg-green-800'}`}>
                 {editingId ? <><Pencil size={15} /> Guardar cambios</> : <><Plus size={15} /> Agregar evento</>}
               </button>
             </div>
@@ -232,7 +232,7 @@ function SubjectsTab({ subjects, onAdd, onDelete }) {
                 {GRADES.map(g => (
                   <button key={g} type="button" onClick={() => setGrade(g)}
                     className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
-                      grade === g ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                      grade === g ? 'bg-white text-green-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                     }`}>{g}°</button>
                 ))}
               </div>
@@ -255,7 +255,7 @@ function SubjectsTab({ subjects, onAdd, onDelete }) {
             {GRADES.map(g => (
               <button key={g} onClick={() => setGrade(g)}
                 className={`px-4 py-1.5 rounded-xl text-sm font-bold border-2 transition-all ${
-                  grade === g ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 text-slate-500 hover:border-indigo-300'
+                  grade === g ? 'bg-green-700 border-green-700 text-white' : 'border-slate-200 text-slate-500 hover:border-green-300'
                 }`}>{g}°</button>
             ))}
             <span className="ml-auto text-xs text-slate-400 self-center">{gradeSubjects.length} materias</span>
@@ -279,7 +279,7 @@ function SubjectsTab({ subjects, onAdd, onDelete }) {
 }
 
 /* ─── Shared ─────────────────────────────────────────── */
-const inp = "w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+const inp = "w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
 
 function Field({ label, children }) {
   return (
@@ -306,7 +306,7 @@ function TabBtn({ active, onClick, icon, label }) {
   return (
     <button onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-        active ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
+        active ? 'bg-green-700 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
       }`}>
       {icon}{label}
     </button>
