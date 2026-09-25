@@ -23,19 +23,12 @@ export default function Header({ activeView, viewTitles = {}, onMenuToggle, even
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        {eventCount > 0 && (
-          <div className="relative">
-            <Bell size={20} className="text-slate-500" />
-            <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-              {eventCount > 9 ? '9+' : eventCount}
-            </span>
-          </div>
-        )}
-        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-          <span className="text-green-700 text-xs font-bold">AD</span>
+      {eventCount > 0 && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-1.5">
+          <Bell size={14} className="text-red-500" />
+          <span className="text-red-600 text-xs font-semibold">{eventCount} urgente{eventCount > 1 ? 's' : ''}</span>
         </div>
-      </div>
+      )}
     </header>
   )
 }
