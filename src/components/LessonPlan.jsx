@@ -33,10 +33,13 @@ const weekLabel = (mondayStr) => {
 const toggleArr = (arr, item) =>
   arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item]
 
-const exportToPDF = (filteredPlans, title, subtitle, subjectsList) => {
-  const sorted = [...filteredPlans]
-    .filter(p => p.actividades)
-    .sort((a, b) => (a.grade + a.weekStart + (a.subjectId || '')).localeCompare(b.grade + b.weekStart + (b.subjectId || '')))
+const exportToPDF = (filteredPlans, title, subtitle, subjectsList, groupBySubject = false) => {
+  const withContent = [...filteredPlans].filter(p => p.actividades)
+  const sorted = withContent.sort((a, b) =>
+    groupBySubject
+      ? (a.subjectId + a.weekStart).localeCompare(b.subjectId + b.weekStart)
+      : (a.weekStart + a.subjectId).localeCompare(b.weekStart + b.subjectId)
+  )
 
   const wLabel = (mondayStr) => {
     try {
@@ -56,7 +59,55 @@ const exportToPDF = (filteredPlans, title, subtitle, subjectsList) => {
 
   const logoUrl = window.location.origin + '/csm-logo.png'
   const date = new Date().toLocaleDateString('es-CO', { year:'numeric', month:'long', day:'numeric' })
-  const multiSubject = new Set(sorted.map(p => p.subjectId)).size > 1
+
+  // Group by subject when needed
+  let content = ''
+  if (groupBySubject) {
+    const bySubject = []
+    let lastId = null
+    sorted.forEach(p => {
+      if (p.subjectId !== lastId) {
+        bySubject.push({ subjectId: p.subjectId, plans: [] })
+        lastId = p.subjectId
+      }
+      bySubject[bySubject.length - 1].plans.push(p)
+    })
+    content = bySubject.map(({ subjectId: sid, plans: sp }) => {
+      const subLabel = subjectsList.find(s => s.id === sid)?.label || sid
+      const grade = sp[0]?.grade || ''
+      return `
+        <div class="subject-block">
+          <div class="subject-header">
+            <span class="subject-name">${esc(subLabel)}</span>
+            <span class="subject-grade">${grade}°</span>
+          </div>
+          ${sp.map(p => weekBlock(p, false)).join('')}
+        </div>`
+    }).join('')
+  } else {
+    content = sorted.map(p => weekBlock(p, false)).join('')
+  }
+
+  function weekBlock(p, showSub) {
+    const subLabel = subjectsList.find(s => s.id === p.subjectId)?.label || ''
+    return `
+    <div class="week">
+      <div class="week-header">
+        <span>Semana · ${wLabel(p.week_start || p.weekStart)}</span>
+        ${showSub ? `<span class="sub-info">${esc(subLabel)}</span>` : ''}
+      </div>
+      <div class="week-body">
+        ${field('Actividades semanales', esc(p.actividades), true)}
+        ${arr(p.evaluacion).length ? `<div class="field"><div class="field-label">Evaluación</div><div class="chips">${chips(p.evaluacion)}</div></div>` : ''}
+        ${arr(p.comp_transversales || p.compTransversales).length ? `<div class="field"><div class="field-label">Comp. Transversales</div><div class="chips">${chips(p.comp_transversales || p.compTransversales)}</div></div>` : ''}
+        ${field('Diferenciación (E · M · IP)', esc(p.diferenciacion))}
+        ${field('Diversidad', esc(p.diversidad))}
+        ${field('Competencias del Área', esc(p.comp_area || p.compArea), true)}
+        ${field('Conexión con el Proyecto', esc(p.conexion_proyecto || p.conexionProyecto), true)}
+        ${field('Observaciones', esc(p.observaciones), true)}
+      </div>
+    </div>`
+  }
 
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
   <title>${title}</title>
@@ -70,9 +121,14 @@ const exportToPDF = (filteredPlans, title, subtitle, subjectsList) => {
     .plan-meta{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 16px;margin:16px 28px}
     .plan-meta h2{font-size:13px;font-weight:700;color:#166534}
     .plan-meta p{font-size:10px;color:#555;margin-top:3px}
-    .week{margin:12px 28px 0;page-break-inside:avoid}
+    .subject-block{margin-top:20px;page-break-before:always}
+    .subject-block:first-child{page-break-before:avoid;margin-top:0}
+    .subject-header{display:flex;align-items:baseline;justify-content:space-between;margin:0 28px 8px;padding-bottom:6px;border-bottom:2px solid #166534}
+    .subject-name{font-size:14px;font-weight:800;color:#166534}
+    .subject-grade{font-size:11px;font-weight:600;color:#4b5563;background:#f0fdf4;padding:2px 10px;border-radius:99px;border:1px solid #bbf7d0}
+    .week{margin:8px 28px 0;page-break-inside:avoid}
     .week-header{background:#166534;color:#fff;padding:7px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:11px;display:flex;justify-content:space-between;align-items:center}
-    .week-header .sub-info{font-weight:400;font-size:10px;opacity:.85}
+    .sub-info{font-weight:400;font-size:10px;opacity:.85}
     .week-body{border:1px solid #d1fae5;border-top:none;border-radius:0 0 6px 6px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
     .field{display:flex;flex-direction:column;gap:3px}
     .field.full{grid-column:1/-1}
@@ -81,33 +137,14 @@ const exportToPDF = (filteredPlans, title, subtitle, subjectsList) => {
     .chips{display:flex;flex-wrap:wrap;gap:4px}
     .chip{background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:99px;font-size:9.5px;font-weight:700}
     .footer{text-align:center;color:#9ca3af;font-size:8.5px;margin-top:28px;padding-top:12px;border-top:1px solid #e5e7eb;margin-left:28px;margin-right:28px}
-    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.week{page-break-inside:avoid}}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.week{page-break-inside:avoid}.subject-block{page-break-before:always}.subject-block:first-child{page-break-before:avoid}}
   </style></head><body>
   <div class="page-header">
     <img src="${logoUrl}" alt="CSM">
     <div><h1>Colegio Santa María</h1><p>Plan Semanal Integrado · Bachillerato</p></div>
   </div>
   <div class="plan-meta"><h2>${esc(title)}</h2><p>${esc(subtitle)}</p></div>
-  ${sorted.map(p => {
-    const subLabel = subjectsList.find(s => s.id === p.subjectId)?.label || ''
-    return `
-    <div class="week">
-      <div class="week-header">
-        <span>Semana del ${wLabel(p.week_start || p.weekStart)}</span>
-        ${multiSubject ? `<span class="sub-info">${esc(subLabel)} · ${p.grade}°</span>` : ''}
-      </div>
-      <div class="week-body">
-        ${field('Actividades semanales', esc(p.actividades), true)}
-        ${arr(p.evaluacion).length ? `<div class="field"><div class="field-label">Evaluación</div><div class="chips">${chips(p.evaluacion)}</div></div>` : ''}
-        ${arr(p.comp_transversales || p.compTransversales).length ? `<div class="field"><div class="field-label">Comp. Transversales</div><div class="chips">${chips(p.comp_transversales || p.compTransversales)}</div></div>` : ''}
-        ${field('Diferenciación (E · M · IP)', esc(p.diferenciacion))}
-        ${field('Diversidad', esc(p.diversidad))}
-        ${field('Competencias del Área', esc(p.comp_area || p.compArea), true)}
-        ${field('Conexión con el Proyecto', esc(p.conexion_proyecto || p.conexionProyecto), true)}
-        ${field('Observaciones', esc(p.observaciones), true)}
-      </div>
-    </div>`
-  }).join('')}
+  ${content}
   <div class="footer">Generado desde Hub Docente · Colegio Santa María · ${date}</div>
   </body></html>`
 
@@ -160,29 +197,30 @@ export default function LessonPlan({ plans, subjects, onSave }) {
     setTimeout(() => setSaved(false), 2500)
   }
 
+  const exportSemana = () => {
+    const subLabel = subjects.find(s => s.id === subjectId)?.label || subjectId
+    exportToPDF(
+      plans.filter(p => p.subjectId === subjectId && (p.week_start || p.weekStart) === weekStart),
+      subLabel + ' · ' + grade + '°',
+      'Semana del ' + weekLabel(weekStart),
+      subjects, false
+    )
+  }
   const exportMateria = () => {
     const subLabel = subjects.find(s => s.id === subjectId)?.label || subjectId
     exportToPDF(
-      plans.filter(p => p.subjectId === subjectId),
+      plans.filter(p => p.subjectId === subjectId && p.grade === grade),
       subLabel + ' · ' + grade + '°',
       'Todas las semanas del período',
-      subjects
+      subjects, false
     )
   }
   const exportGrado = () => {
     exportToPDF(
       plans.filter(p => p.grade === grade),
-      'Grado ' + grade + '° — Plan Semanal Completo',
+      'Grado ' + grade + '° — Plan Semanal Integrado',
       'Todas las materias · Todas las semanas',
-      subjects
-    )
-  }
-  const exportTodo = () => {
-    exportToPDF(
-      plans,
-      'Compilado Total — Bachillerato',
-      'Grados 9°, 10° y 11° · Todas las materias · Todas las semanas',
-      subjects
+      subjects, true
     )
   }
 
@@ -260,20 +298,20 @@ export default function LessonPlan({ plans, subjects, onSave }) {
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowExport(false)} />
                 <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 min-w-[220px] py-1 overflow-hidden">
-                  <button onClick={() => { exportMateria(); setShowExport(false) }}
+                  <button onClick={() => { exportSemana(); setShowExport(false) }}
                     className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors">
-                    <p className="font-semibold text-slate-700">Esta materia</p>
-                    <p className="text-xs text-slate-400">{currentSubject?.label} — todas las semanas</p>
+                    <p className="font-semibold text-slate-700">Esta materia · Esta semana</p>
+                    <p className="text-xs text-slate-400">{currentSubject?.label} · {weekLabel(weekStart)}</p>
+                  </button>
+                  <button onClick={() => { exportMateria(); setShowExport(false) }}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors border-t border-slate-50">
+                    <p className="font-semibold text-slate-700">Esta materia · Todas las semanas</p>
+                    <p className="text-xs text-slate-400">{currentSubject?.label} · {grade}°</p>
                   </button>
                   <button onClick={() => { exportGrado(); setShowExport(false) }}
                     className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors border-t border-slate-50">
-                    <p className="font-semibold text-slate-700">Grado {grade}° completo</p>
-                    <p className="text-xs text-slate-400">Todas las materias de {grade}°</p>
-                  </button>
-                  <button onClick={() => { exportTodo(); setShowExport(false) }}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors border-t border-slate-50">
-                    <p className="font-semibold text-slate-700">Compilado total</p>
-                    <p className="text-xs text-slate-400">9°, 10° y 11° — todas las semanas</p>
+                    <p className="font-semibold text-slate-700">Todas las materias · Grado {grade}°</p>
+                    <p className="text-xs text-slate-400">Agrupado por materia · todas las semanas</p>
                   </button>
                 </div>
               </>
