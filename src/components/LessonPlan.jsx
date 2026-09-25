@@ -33,12 +33,88 @@ const weekLabel = (mondayStr) => {
 const toggleArr = (arr, item) =>
   arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item]
 
-const downloadCSV = (rows, filename) => {
-  const csv = rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a'); a.href = url; a.download = filename; a.click()
-  URL.revokeObjectURL(url)
+const exportToPDF = (filteredPlans, title, subtitle, subjectsList) => {
+  const sorted = [...filteredPlans]
+    .filter(p => p.actividades)
+    .sort((a, b) => (a.grade + a.weekStart + (a.subjectId || '')).localeCompare(b.grade + b.weekStart + (b.subjectId || '')))
+
+  const wLabel = (mondayStr) => {
+    try {
+      const s = parseISO(mondayStr)
+      return `${format(s, "d 'de' MMMM", { locale: es })} – ${format(addDays(s, 4), "d 'de' MMMM yyyy", { locale: es })}`
+    } catch { return mondayStr }
+  }
+
+  const arr = (v) => Array.isArray(v) ? v : (v ? [v] : [])
+  const esc = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')
+  const chips = (items) => arr(items).map(i => `<span class="chip">${esc(i)}</span>`).join('')
+  const field = (label, content, full = false) => content ? `
+    <div class="field ${full ? 'full' : ''}">
+      <div class="field-label">${label}</div>
+      <div class="field-value">${content}</div>
+    </div>` : ''
+
+  const logoUrl = window.location.origin + '/csm-logo.png'
+  const date = new Date().toLocaleDateString('es-CO', { year:'numeric', month:'long', day:'numeric' })
+  const multiSubject = new Set(sorted.map(p => p.subjectId)).size > 1
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>${title}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;color:#111;background:#fff;padding:0 0 32px}
+    .page-header{display:flex;align-items:center;gap:16px;padding:20px 28px 16px;border-bottom:3px solid #166534}
+    .page-header img{height:44px;width:auto}
+    .page-header h1{font-size:15px;font-weight:800;color:#166534;line-height:1.2}
+    .page-header p{font-size:10px;color:#666;margin-top:3px}
+    .plan-meta{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 16px;margin:16px 28px}
+    .plan-meta h2{font-size:13px;font-weight:700;color:#166534}
+    .plan-meta p{font-size:10px;color:#555;margin-top:3px}
+    .week{margin:12px 28px 0;page-break-inside:avoid}
+    .week-header{background:#166534;color:#fff;padding:7px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:11px;display:flex;justify-content:space-between;align-items:center}
+    .week-header .sub-info{font-weight:400;font-size:10px;opacity:.85}
+    .week-body{border:1px solid #d1fae5;border-top:none;border-radius:0 0 6px 6px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+    .field{display:flex;flex-direction:column;gap:3px}
+    .field.full{grid-column:1/-1}
+    .field-label{font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#166534}
+    .field-value{font-size:10.5px;line-height:1.55;color:#111}
+    .chips{display:flex;flex-wrap:wrap;gap:4px}
+    .chip{background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:99px;font-size:9.5px;font-weight:700}
+    .footer{text-align:center;color:#9ca3af;font-size:8.5px;margin-top:28px;padding-top:12px;border-top:1px solid #e5e7eb;margin-left:28px;margin-right:28px}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.week{page-break-inside:avoid}}
+  </style></head><body>
+  <div class="page-header">
+    <img src="${logoUrl}" alt="CSM">
+    <div><h1>Colegio Santa María</h1><p>Plan Semanal Integrado · Bachillerato</p></div>
+  </div>
+  <div class="plan-meta"><h2>${esc(title)}</h2><p>${esc(subtitle)}</p></div>
+  ${sorted.map(p => {
+    const subLabel = subjectsList.find(s => s.id === p.subjectId)?.label || ''
+    return `
+    <div class="week">
+      <div class="week-header">
+        <span>Semana del ${wLabel(p.week_start || p.weekStart)}</span>
+        ${multiSubject ? `<span class="sub-info">${esc(subLabel)} · ${p.grade}°</span>` : ''}
+      </div>
+      <div class="week-body">
+        ${field('Actividades semanales', esc(p.actividades), true)}
+        ${arr(p.evaluacion).length ? `<div class="field"><div class="field-label">Evaluación</div><div class="chips">${chips(p.evaluacion)}</div></div>` : ''}
+        ${arr(p.comp_transversales || p.compTransversales).length ? `<div class="field"><div class="field-label">Comp. Transversales</div><div class="chips">${chips(p.comp_transversales || p.compTransversales)}</div></div>` : ''}
+        ${field('Diferenciación (E · M · IP)', esc(p.diferenciacion))}
+        ${field('Diversidad', esc(p.diversidad))}
+        ${field('Competencias del Área', esc(p.comp_area || p.compArea), true)}
+        ${field('Conexión con el Proyecto', esc(p.conexion_proyecto || p.conexionProyecto), true)}
+        ${field('Observaciones', esc(p.observaciones), true)}
+      </div>
+    </div>`
+  }).join('')}
+  <div class="footer">Generado desde Hub Docente · Colegio Santa María · ${date}</div>
+  </body></html>`
+
+  const win = window.open('', '_blank')
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => { win.focus(); win.print() }
 }
 
 export default function LessonPlan({ plans, subjects, onSave }) {
@@ -84,36 +160,30 @@ export default function LessonPlan({ plans, subjects, onSave }) {
     setTimeout(() => setSaved(false), 2500)
   }
 
-  // Export helpers
-  const planRows = (filteredPlans) => {
-    const headers = ['Grado', 'Semana', 'Materia', 'Actividades', 'Evaluación',
-      'Diferenciación', 'Diversidad', 'Comp. Transversales', 'Comp. del Área', 'Conexión Proyecto', 'Observaciones']
-    const rows = filteredPlans
-      .sort((a, b) => (a.grade + a.weekStart + a.subjectId).localeCompare(b.grade + b.weekStart + b.subjectId))
-      .map(p => {
-        const subLabel = subjects.find(s => s.id === p.subjectId)?.label || p.subjectId
-        return [
-          `${p.grade}°`, weekLabel(p.weekStart), subLabel,
-          p.actividades || '', (p.evaluacion || []).join(' + '),
-          p.diferenciacion || '', p.diversidad || '',
-          (p.compTransversales || []).join(', '), p.compArea || '',
-          p.conexionProyecto || '', p.observaciones || '',
-        ]
-      })
-    return [headers, ...rows]
-  }
-
   const exportMateria = () => {
     const subLabel = subjects.find(s => s.id === subjectId)?.label || subjectId
-    downloadCSV(planRows(plans.filter(p => p.subjectId === subjectId)),
-      `plan_${subjectId}.csv`)
+    exportToPDF(
+      plans.filter(p => p.subjectId === subjectId),
+      subLabel + ' · ' + grade + '°',
+      'Todas las semanas del período',
+      subjects
+    )
   }
   const exportGrado = () => {
-    downloadCSV(planRows(plans.filter(p => p.grade === grade)),
-      `plan_${grade}grado.csv`)
+    exportToPDF(
+      plans.filter(p => p.grade === grade),
+      'Grado ' + grade + '° — Plan Semanal Completo',
+      'Todas las materias · Todas las semanas',
+      subjects
+    )
   }
   const exportTodo = () => {
-    downloadCSV(planRows(plans), 'plan_compilado_total.csv')
+    exportToPDF(
+      plans,
+      'Compilado Total — Bachillerato',
+      'Grados 9°, 10° y 11° · Todas las materias · Todas las semanas',
+      subjects
+    )
   }
 
   const isCurrentWeek = weekStart === getMonday(new Date())
@@ -184,7 +254,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
           <div className="relative">
             <button onClick={() => setShowExport(v => !v)}
               className="flex items-center gap-1.5 px-3 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm font-medium">
-              <Download size={14} /> Exportar <ChevronDown size={12} />
+              <Download size={14} /> PDF <ChevronDown size={12} />
             </button>
             {showExport && (
               <>
