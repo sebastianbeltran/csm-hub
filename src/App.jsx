@@ -20,7 +20,7 @@ export default function App() {
     isAdminRoute() ? 'admin' : 'dashboard'
   )
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { events, plans, subjects, loading, error, addEvent, deleteEvent, savePlan, addSubject, deleteSubject } = useStore()
+  const { events, plans, subjects, loading, error, addEvent, updateEvent, deleteEvent, savePlan, addSubject, deleteSubject } = useStore()
 
   const navigate = (view) => { setActiveView(view); setSidebarOpen(false) }
 
@@ -66,7 +66,7 @@ export default function App() {
           <main className="flex-1 overflow-y-auto p-4 sm:p-6">
             <AdminPanel
               events={events} subjects={subjects}
-              onAddEvent={addEvent} onDeleteEvent={deleteEvent}
+              onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent}
               onAddSubject={addSubject} onDeleteSubject={deleteSubject}
             />
           </main>

@@ -48,6 +48,11 @@ export function useStore() {
     if (!error) setEvents(prev => prev.filter(e => e.id !== id))
   }
 
+  const updateEvent = async (event) => {
+    const { data, error } = await supabase.from('events').update(event).eq('id', event.id).select().single()
+    if (!error && data) setEvents(prev => prev.map(e => e.id === event.id ? data : e).sort((a, b) => new Date(a.date) - new Date(b.date)))
+  }
+
   const savePlan = async (plan) => {
     const row = { ...plan, saved_at: new Date().toISOString() }
     const { data, error } = await supabase.from('plans').upsert(row).select().single()
@@ -66,5 +71,5 @@ export function useStore() {
     if (!error) setSubjects(prev => prev.filter(s => s.id !== id))
   }
 
-  return { events, plans, subjects, loading, error, addEvent, deleteEvent, savePlan, addSubject, deleteSubject }
+  return { events, plans, subjects, loading, error, addEvent, updateEvent, deleteEvent, savePlan, addSubject, deleteSubject }
 }

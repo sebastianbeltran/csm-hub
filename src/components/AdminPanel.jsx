@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, Calendar, BookOpen, Lock } from 'lucide-react'
+import { Plus, Trash2, Calendar, BookOpen, Lock, Pencil, X } from 'lucide-react'
 import { CATEGORY_STYLES } from '../data/constants'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -16,7 +16,7 @@ const PRIORITIES = [
 ]
 const emptyEvent = { title: '', description: '', date: '', category: 'academico', priority: 'medium' }
 
-export default function AdminPanel({ events, subjects, onAddEvent, onDeleteEvent, onAddSubject, onDeleteSubject }) {
+export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject }) {
   const [unlocked, setUnlocked] = useState(
     () => sessionStorage.getItem('csm_admin') === 'true'
   )
@@ -30,7 +30,7 @@ export default function AdminPanel({ events, subjects, onAddEvent, onDeleteEvent
 
   return <AdminContent
     events={events} subjects={subjects}
-    onAddEvent={onAddEvent} onDeleteEvent={onDeleteEvent}
+    onAddEvent={onAddEvent} onUpdateEvent={onUpdateEvent} onDeleteEvent={onDeleteEvent}
     onAddSubject={onAddSubject} onDeleteSubject={onDeleteSubject}
   />
 }
@@ -77,7 +77,7 @@ function PasswordGate({ onUnlock }) {
 }
 
 /* ─── Admin Content ──────────────────────────────────── */
-function AdminContent({ events, subjects, onAddEvent, onDeleteEvent, onAddSubject, onDeleteSubject }) {
+function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject }) {
   const [tab, setTab] = useState('events')
 
   return (
@@ -88,21 +88,34 @@ function AdminContent({ events, subjects, onAddEvent, onDeleteEvent, onAddSubjec
         <TabBtn active={tab === 'subjects'} onClick={() => setTab('subjects')} icon={<BookOpen size={14} />} label="Materias" />
       </div>
 
-      {tab === 'events'   && <EventsTab events={events} onAdd={onAddEvent} onDelete={onDeleteEvent} />}
+      {tab === 'events'   && <EventsTab events={events} onAdd={onAddEvent} onUpdate={onUpdateEvent} onDelete={onDeleteEvent} />}
       {tab === 'subjects' && <SubjectsTab subjects={subjects} onAdd={onAddSubject} onDelete={onDeleteSubject} />}
     </div>
   )
 }
 
 /* ─── Events Tab ─────────────────────────────────────── */
-function EventsTab({ events, onAdd, onDelete }) {
-  const [form, setForm]       = useState(emptyEvent)
-  const [success, setSuccess] = useState(false)
+function EventsTab({ events, onAdd, onUpdate, onDelete }) {
+  const [form, setForm]         = useState(emptyEvent)
+  const [editingId, setEditingId] = useState(null)
+  const [success, setSuccess]   = useState(false)
 
-  const handleAdd = (e) => {
+  const startEdit = (event) => {
+    setEditingId(event.id)
+    setForm({ title: event.title, description: event.description || '', date: event.date, category: event.category, priority: event.priority })
+  }
+
+  const cancelEdit = () => { setEditingId(null); setForm(emptyEvent) }
+
+  const handleSubmit = (e) => {
     e.preventDefault()
     if (!form.title.trim() || !form.date) return
-    onAdd({ ...form })
+    if (editingId) {
+      onUpdate({ ...form, id: editingId })
+      setEditingId(null)
+    } else {
+      onAdd({ ...form })
+    }
     setForm(emptyEvent)
     setSuccess(true)
     setTimeout(() => setSuccess(false), 2500)
@@ -111,8 +124,11 @@ function EventsTab({ events, onAdd, onDelete }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       <div className="lg:col-span-2">
-        <Card title="Agregar evento" icon={<Calendar size={15} className="text-indigo-500" />}>
-          <form onSubmit={handleAdd} className="space-y-4">
+        <Card
+          title={editingId ? 'Editar evento' : 'Agregar evento'}
+          icon={<Calendar size={15} className={editingId ? 'text-amber-500' : 'text-indigo-500'} />}
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
             <Field label="Título *">
               <input type="text" placeholder="Ej: Entrega de notas"
                 value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -139,10 +155,17 @@ function EventsTab({ events, onAdd, onDelete }) {
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                 rows={3} className={`${inp} resize-none`} />
             </Field>
-            <button type="submit" className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors">
-              <Plus size={15} /> Agregar evento
-            </button>
-            {success && <p className="text-center text-emerald-600 text-sm font-semibold">✓ Evento agregado</p>}
+            <div className="flex gap-2">
+              {editingId && (
+                <button type="button" onClick={cancelEdit} className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-500 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors">
+                  <X size={15} /> Cancelar
+                </button>
+              )}
+              <button type="submit" className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-white rounded-xl font-bold text-sm transition-colors ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+                {editingId ? <><Pencil size={15} /> Guardar cambios</> : <><Plus size={15} /> Agregar evento</>}
+              </button>
+            </div>
+            {success && <p className="text-center text-emerald-600 text-sm font-semibold">✓ {editingId ? 'Evento actualizado' : 'Evento agregado'}</p>}
           </form>
         </Card>
       </div>
@@ -164,9 +187,14 @@ function EventsTab({ events, onAdd, onDelete }) {
                       <span className="text-xs text-slate-400">{dl}</span>
                     </div>
                   </div>
-                  <button onClick={() => onDelete(event.id)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                    <Trash2 size={14} />
-                  </button>
+                  <div className="flex gap-1">
+                    <button onClick={() => startEdit(event)} className="p-1.5 text-slate-300 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors">
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => onDelete(event.id)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
               )
             })}
