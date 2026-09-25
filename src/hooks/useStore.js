@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, missingConfig } from '../lib/supabase'
 
 export function useStore() {
   const [events,   setEvents]   = useState([])
@@ -9,6 +9,11 @@ export function useStore() {
   const [error,    setError]    = useState(null)
 
   const loadAll = useCallback(async () => {
+    if (missingConfig) {
+      setError('Faltan las variables de entorno de Supabase. Configúralas en Vercel → Settings → Environment Variables y redesplega.')
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
