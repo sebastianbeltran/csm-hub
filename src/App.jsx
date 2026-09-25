@@ -81,7 +81,7 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header activeView={activeView} viewTitles={VIEW_TITLES} onMenuToggle={() => setSidebarOpen(o => !o)} eventCount={urgentCount} />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {activeView === 'dashboard' && <Dashboard events={events} onDelete={deleteEvent} />}
+          {activeView === 'dashboard' && <Dashboard events={events} />}
           {activeView === 'plans'     && <LessonPlan plans={plans} subjects={subjects} onSave={savePlan} />}
         </main>
       </div>

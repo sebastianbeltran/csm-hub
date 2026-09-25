@@ -8,7 +8,7 @@ import {
 import { es } from 'date-fns/locale'
 import {
   Sun, CalendarDays, CalendarRange,
-  ChevronLeft, ChevronRight, Trash2, X, AlertCircle,
+  ChevronLeft, ChevronRight, X, AlertCircle,
 } from 'lucide-react'
 import { CATEGORY_STYLES } from '../data/constants'
 
@@ -32,7 +32,7 @@ function relDate(dateStr) {
   } catch { return { label: dateStr, chip: 'bg-slate-100 text-slate-500' } }
 }
 
-export default function Dashboard({ events, onDelete }) {
+export default function Dashboard({ events }) {
   const [view, setView] = useState('day')
   const [focusDate, setFocusDate] = useState(new Date())
   const [modalEvent, setModalEvent] = useState(null)
@@ -131,7 +131,6 @@ export default function Dashboard({ events, onDelete }) {
             <DayView
               date={focusDate}
               events={eventsForDay(events, focusDate)}
-              onDelete={onDelete}
             />
           )}
           {view === 'week' && (
@@ -213,7 +212,6 @@ export default function Dashboard({ events, onDelete }) {
         <EventModal
           event={modalEvent}
           onClose={() => setModalEvent(null)}
-          onDelete={(id) => { onDelete(id); setModalEvent(null) }}
         />
       )}
     </div>
@@ -221,7 +219,7 @@ export default function Dashboard({ events, onDelete }) {
 }
 
 /* ─── Day View ─────────────────────────────────── */
-function DayView({ date, events, onDelete }) {
+function DayView({ date, events }) {
   const past = isPast(date) && !isToday(date)
   const high = events.filter(e => e.priority === 'high')
   const others = events.filter(e => e.priority !== 'high')
@@ -256,7 +254,7 @@ function DayView({ date, events, onDelete }) {
             Alta prioridad
           </p>
           <div className="space-y-2">
-            {high.map(e => <DayCard key={e.id} event={e} onDelete={onDelete} />)}
+            {high.map(e => <DayCard key={e.id} event={e} />)}
           </div>
         </div>
       )}
@@ -271,7 +269,7 @@ function DayView({ date, events, onDelete }) {
             </p>
           )}
           <div className="space-y-2">
-            {others.map(e => <DayCard key={e.id} event={e} onDelete={onDelete} />)}
+            {others.map(e => <DayCard key={e.id} event={e} />)}
           </div>
         </div>
       )}
@@ -287,21 +285,16 @@ function DayView({ date, events, onDelete }) {
   )
 }
 
-function DayCard({ event, onDelete }) {
+function DayCard({ event }) {
   const style = CATEGORY_STYLES[event.category] || CATEGORY_STYLES.academico
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 border-l-4 flex gap-3" style={{ borderLeftColor: style.accent }}>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap mb-1">
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}>{style.label}</span>
-          {event.priority === 'high' && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">⚠ Alta</span>}
-        </div>
-        <p className="text-sm font-bold text-slate-800">{event.title}</p>
-        {event.description && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{event.description}</p>}
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 border-l-4" style={{ borderLeftColor: style.accent }}>
+      <div className="flex items-center gap-2 flex-wrap mb-1">
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}>{style.label}</span>
+        {event.priority === 'high' && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">⚠ Alta</span>}
       </div>
-      <button onClick={() => onDelete(event.id)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors flex-shrink-0 self-start">
-        <Trash2 size={13} />
-      </button>
+      <p className="text-sm font-bold text-slate-800">{event.title}</p>
+      {event.description && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{event.description}</p>}
     </div>
   )
 }
@@ -416,7 +409,7 @@ function MonthView({ focusDate, events, onDayClick }) {
 }
 
 /* ─── Modal ─────────────────────────────────────── */
-function EventModal({ event, onClose, onDelete }) {
+function EventModal({ event, onClose }) {
   const style = CATEGORY_STYLES[event.category] || CATEGORY_STYLES.academico
   let date
   try { date = parseISO(event.date) } catch { date = new Date() }
@@ -441,8 +434,8 @@ function EventModal({ event, onClose, onDelete }) {
           </div>
         </div>
         <div className="px-6 pb-6 flex justify-end">
-          <button onClick={() => onDelete(event.id)} className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors text-sm font-medium">
-            <Trash2 size={14} /> Eliminar
+          <button onClick={onClose} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors text-sm font-medium">
+            Cerrar
           </button>
         </div>
       </div>
