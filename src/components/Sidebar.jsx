@@ -1,4 +1,4 @@
-import { LayoutDashboard } from 'lucide-react'
+import { LayoutDashboard, BookOpen } from 'lucide-react'
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard',    icon: LayoutDashboard },
