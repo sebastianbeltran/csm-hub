@@ -297,7 +297,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
             {showExport && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowExport(false)} />
-                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 min-w-[220px] py-1 overflow-hidden">
+                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 min-w-[260px] py-1">
                   <button onClick={() => { exportSemana(); setShowExport(false) }}
                     className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors">
                     <p className="font-semibold text-slate-700">Esta materia · Esta semana</p>

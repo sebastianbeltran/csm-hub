@@ -1,6 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, missingConfig } from '../lib/supabase'
 
+// Supabase returns snake_case; normalize to camelCase for the app
+const normalizePlan = (p) => ({
+  ...p,
+  subjectId:         p.subject_id         ?? p.subjectId         ?? '',
+  weekStart:         p.week_start         ?? p.weekStart         ?? '',
+  compTransversales: p.comp_transversales ?? p.compTransversales ?? [],
+  compArea:          p.comp_area          ?? p.compArea          ?? '',
+  conexionProyecto:  p.conexion_proyecto  ?? p.conexionProyecto  ?? '',
+  evaluacion:        Array.isArray(p.evaluacion) ? p.evaluacion : [],
+  diferenciacion:    p.diferenciacion     ?? '',
+  diversidad:        p.diversidad         ?? '',
+  actividades:       p.actividades        ?? '',
+  observaciones:     p.observaciones      ?? '',
+})
+
 export function useStore() {
   const [events,   setEvents]   = useState([])
   const [plans,    setPlans]    = useState([])
@@ -26,7 +41,7 @@ export function useStore() {
       if (plnsRes.error) throw plnsRes.error
       if (subsRes.error) throw subsRes.error
       setEvents(evtsRes.data ?? [])
-      setPlans(plnsRes.data ?? [])
+      setPlans((plnsRes.data ?? []).map(normalizePlan))
       setSubjects(subsRes.data ?? [])
     } catch (err) {
       setError(err.message ?? 'Error al conectar con la base de datos')
@@ -56,7 +71,7 @@ export function useStore() {
   const savePlan = async (plan) => {
     const row = { ...plan, saved_at: new Date().toISOString() }
     const { data, error } = await supabase.from('plans').upsert(row).select().single()
-    if (!error && data) setPlans(prev => [...prev.filter(p => p.id !== plan.id), data])
+    if (!error && data) setPlans(prev => [...prev.filter(p => p.id !== plan.id), normalizePlan(data)])
   }
 
   const addSubject = async (subject) => {
