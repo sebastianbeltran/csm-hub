@@ -11,6 +11,7 @@ import {
   ChevronLeft, ChevronRight, X, AlertCircle,
 } from 'lucide-react'
 import { CATEGORY_STYLES } from '../data/constants'
+import ViglanciasHoy from './ViglanciasHoy'
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
@@ -203,6 +204,9 @@ export default function Dashboard({ events }) {
           </div>
         </div>
       </div>
+
+      {/* Vigilancias del día */}
+      <ViglanciasHoy />
 
       {/* Modal */}
       {modalEvent && (

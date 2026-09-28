@@ -1,0 +1,348 @@
+{
+  "vigilancias": [
+    {
+      "section": "DESCANSO",
+      "slot": "9:35 - 10:05",
+      "spot": "tienda",
+      "lunes": "Grace Forero",
+      "martes": "Juan Sebastián",
+      "miercoles": "Mónica",
+      "jueves": "Felipe González",
+      "viernes": "Felipe González"
+    },
+    {
+      "section": "DESCANSO",
+      "slot": "9:35 - 10:05",
+      "spot": "Biblioteca y Plaza Civica",
+      "lunes": "Jose Cruz",
+      "martes": "Jessica Obregón",
+      "miercoles": "Jose Cruz",
+      "jueves": "Adriana",
+      "viernes": "Ana Sánchez"
+    },
+    {
+      "section": "DESCANSO",
+      "slot": "9:35 - 10:05",
+      "spot": "Bloque segundo piso",
+      "lunes": "Mayra Gámez",
+      "martes": "Sharon Rojas",
+      "miercoles": "Celis",
+      "jueves": "Celis",
+      "viernes": "Hernán M. Sanabria"
+    },
+    {
+      "section": "DESCANSO",
+      "slot": "9:35 - 10:05",
+      "spot": "Bloque Primer piso",
+      "lunes": "Angelica Rodriguez",
+      "martes": "Alejandro Medina",
+      "miercoles": "",
+      "jueves": "Arcenio Henao",
+      "viernes": "Sharon Rojas"
+    },
+    {
+      "section": "ALMUERZO",
+      "slot": "1:05 - 1:35",
+      "spot": "Cafeteria",
+      "lunes": "Mónica",
+      "martes": "Grace Forero",
+      "miercoles": "Mayra Gámez",
+      "jueves": "Alejandro Medina",
+      "viernes": ""
+    },
+    {
+      "section": "ALMUERZO",
+      "slot": "1:35 - 2:05",
+      "spot": "Cafeteria 2do turno",
+      "lunes": "Valeria Borda",
+      "martes": "Angelica Rodiguez",
+      "miercoles": "Juan Sebastián",
+      "jueves": "Ana Sánchez",
+      "viernes": ""
+    },
+    {
+      "section": "ALMUERZO",
+      "slot": "1:35 - 2:05",
+      "spot": "Primer Piso",
+      "lunes": "Arcenio Henao",
+      "martes": "Natalia Osorio",
+      "miercoles": "",
+      "jueves": "Valeria Borda",
+      "viernes": ""
+    },
+    {
+      "section": "ALMUERZO",
+      "slot": "1:35 - 2:05",
+      "spot": "Segundo Piso",
+      "lunes": "",
+      "martes": "Jose Cruz",
+      "miercoles": "",
+      "jueves": "",
+      "viernes": ""
+    }
+  ],
+  "carros": [
+    {
+      "label": "25 al 28 de agosto",
+      "start": "2026-08-25",
+      "end": "2026-08-28",
+      "lunes": "",
+      "martes": "Jessica Obregón",
+      "miercoles": "Angélica Rodríguez",
+      "jueves": "Arcenio Henao",
+      "viernes": "Grace Forero"
+    },
+    {
+      "label": "31 al 31 de agosto",
+      "start": "2026-08-31",
+      "end": "2026-08-31",
+      "lunes": "Celismar Roa",
+      "martes": "",
+      "miercoles": "",
+      "jueves": "",
+      "viernes": ""
+    },
+    {
+      "label": "1 al 4 de septiembre",
+      "start": "2026-09-01",
+      "end": "2026-09-04",
+      "lunes": "",
+      "martes": "Alejandro Medina",
+      "miercoles": "Mayra Gámez",
+      "jueves": "Sebastián Beltrán",
+      "viernes": "Mónica Pérez"
+    },
+    {
+      "label": "7 al 11 de septiembre",
+      "start": "2026-09-07",
+      "end": "2026-09-11",
+      "lunes": "Jessica Obregón",
+      "martes": "Sharon Rojas",
+      "miercoles": "Natalia Osorio",
+      "jueves": "Ana Sánchez",
+      "viernes": "José Cruz"
+    },
+    {
+      "label": "14 al 18 de septiembre",
+      "start": "2026-09-14",
+      "end": "2026-09-18",
+      "lunes": "Sebastián Beltrán",
+      "martes": "Valeria Borda",
+      "miercoles": "José Cruz",
+      "jueves": "Grace Forero",
+      "viernes": "Mayra Gámez"
+    },
+    {
+      "label": "21 al 25 de septiembre",
+      "start": "2026-09-21",
+      "end": "2026-09-25",
+      "lunes": "Felipe Gonzalez",
+      "martes": "Arcenio Henao",
+      "miercoles": "Alejandro Medina",
+      "jueves": "Mónica Pérez",
+      "viernes": "Jessica Obregón"
+    },
+    {
+      "label": "28 de septiembre - 02 de octubre",
+      "start": "2026-09-28",
+      "end": "2026-10-02",
+      "lunes": "Celismar Roa",
+      "martes": "Angélica Rodríguez",
+      "miercoles": "Sharon Rojas",
+      "jueves": "Hernán Sanabria",
+      "viernes": "Ana Sánchez"
+    },
+    {
+      "label": "05 al 09 de octubre",
+      "start": "2026-10-05",
+      "end": "2026-10-09",
+      "lunes": "SEMANA DE RECESO",
+      "martes": "",
+      "miercoles": "",
+      "jueves": "",
+      "viernes": ""
+    },
+    {
+      "label": "12 al 16 de octubre",
+      "start": "2026-10-12",
+      "end": "2026-10-16",
+      "lunes": "FESTIVO",
+      "martes": "Natalia Osorio",
+      "miercoles": "Sebastián Beltrán",
+      "jueves": "Valeria Borda",
+      "viernes": "José Cruz"
+    },
+    {
+      "label": "19 al 23 de octubre",
+      "start": "2026-10-19",
+      "end": "2026-10-23",
+      "lunes": "Grace Forero",
+      "martes": "Mayra Gámez",
+      "miercoles": "Felipe González",
+      "jueves": "Arcenio Henao",
+      "viernes": "Alejandro Medina"
+    },
+    {
+      "label": "26 al 30 de octubre",
+      "start": "2026-10-26",
+      "end": "2026-10-30",
+      "lunes": "Mónica Pérez",
+      "martes": "Jessica Obregón",
+      "miercoles": "Celismar Roa",
+      "jueves": "Angélica Rodríguez",
+      "viernes": "Sharon Rojas"
+    },
+    {
+      "label": "02 al 06 de noviembre",
+      "start": "2026-11-02",
+      "end": "2026-11-06",
+      "lunes": "FESTIVO",
+      "martes": "Hernán Sanabria",
+      "miercoles": "Ana Sánchez",
+      "jueves": "Natalia Osorio",
+      "viernes": "Sebastián Beltrán"
+    },
+    {
+      "label": "09 al 13 de noviembre",
+      "start": "2026-11-09",
+      "end": "2026-11-13",
+      "lunes": "Valeria Borda",
+      "martes": "José Cruz",
+      "miercoles": "Grace Forero",
+      "jueves": "Mayra Gámez",
+      "viernes": "Felipe González"
+    }
+  ],
+  "rutas": [
+    {
+      "label": "25 al 28 de agosto",
+      "start": "2026-08-25",
+      "end": "2026-08-28",
+      "lunes": "",
+      "martes": "Natalia Osorio",
+      "miercoles": "José Cruz",
+      "jueves": "Ana Sánchez",
+      "viernes": "Hernán Sanabria"
+    },
+    {
+      "label": "31 al 31 de agosto",
+      "start": "2026-08-31",
+      "end": "2026-08-31",
+      "lunes": "Valeria Borda",
+      "martes": "",
+      "miercoles": "",
+      "jueves": "",
+      "viernes": ""
+    },
+    {
+      "label": "1 al 4 de septiembre",
+      "start": "2026-09-01",
+      "end": "2026-09-04",
+      "lunes": "",
+      "martes": "Sharon Rojas",
+      "miercoles": "Valeria Borda",
+      "jueves": "Arcenio Henao",
+      "viernes": "Felipe González"
+    },
+    {
+      "label": "7 al 11 de septiembre",
+      "start": "2026-09-07",
+      "end": "2026-09-11",
+      "lunes": "Grace Forero",
+      "martes": "Angélica Rodríguez",
+      "miercoles": "Sebastián Beltrán",
+      "jueves": "Valeria Borda",
+      "viernes": "Alejandro Medina"
+    },
+    {
+      "label": "14 al 18 de septiembre",
+      "start": "2026-09-14",
+      "end": "2026-09-18",
+      "lunes": "Mónica Pérez",
+      "martes": "Jessica Obregón",
+      "miercoles": "Celismar Roa",
+      "jueves": "Angélica Rodríguez",
+      "viernes": "Sharon Rojas"
+    },
+    {
+      "label": "21 al 25 de septiembre",
+      "start": "2026-09-21",
+      "end": "2026-09-25",
+      "lunes": "Hernán Sanabria",
+      "martes": "Ana Sánchez",
+      "miercoles": "Natalia Osorio",
+      "jueves": "Sebastián Beltrán",
+      "viernes": "Valeria Borda"
+    },
+    {
+      "label": "28 de septiembre - 02 de octubre",
+      "start": "2026-09-28",
+      "end": "2026-10-02",
+      "lunes": "José Cruz",
+      "martes": "Grace Forero",
+      "miercoles": "Mayra Gámez",
+      "jueves": "Felipe González",
+      "viernes": "Arcenio Henao"
+    },
+    {
+      "label": "05 al 09 de octubre",
+      "start": "2026-10-05",
+      "end": "2026-10-09",
+      "lunes": "SEMANA DE RECESO",
+      "martes": "",
+      "miercoles": "",
+      "jueves": "",
+      "viernes": ""
+    },
+    {
+      "label": "12 al 16 de octubre",
+      "start": "2026-10-12",
+      "end": "2026-10-16",
+      "lunes": "FESTIVO",
+      "martes": "Alejandro Medina",
+      "miercoles": "Mónica Pérez",
+      "jueves": "Jessica Obregón",
+      "viernes": "Celismar Roa"
+    },
+    {
+      "label": "19 al 23 de octubre",
+      "start": "2026-10-19",
+      "end": "2026-10-23",
+      "lunes": "Angélica Rodríguez",
+      "martes": "Sharon Rojas",
+      "miercoles": "Hernán Sanabria",
+      "jueves": "Ana Sánchez",
+      "viernes": "Natalia Osorio"
+    },
+    {
+      "label": "26 al 30 de octubre",
+      "start": "2026-10-26",
+      "end": "2026-10-30",
+      "lunes": "Sebastián Beltrán",
+      "martes": "Valeria Borda",
+      "miercoles": "José Cruz",
+      "jueves": "Grace Forero",
+      "viernes": "Mayra Gámez"
+    },
+    {
+      "label": "02 al 06 de noviembre",
+      "start": "2026-11-02",
+      "end": "2026-11-06",
+      "lunes": "FESTIVO",
+      "martes": "Felipe González",
+      "miercoles": "Arcenio Henao",
+      "jueves": "Alejandro Medina",
+      "viernes": "Mónica Pérez"
+    },
+    {
+      "label": "09 al 13 de noviembre",
+      "start": "2026-11-09",
+      "end": "2026-11-13",
+      "lunes": "Jessica Obregón",
+      "martes": "Celismar Roa",
+      "miercoles": "Angélica Rodríguez",
+      "jueves": "Sharon Rojas",
+      "viernes": "Hernán Sanabria"
+    }
+  ]
+}

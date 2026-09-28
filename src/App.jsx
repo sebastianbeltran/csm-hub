@@ -20,7 +20,7 @@ export default function App() {
     isAdminRoute() ? 'admin' : 'dashboard'
   )
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { events, plans, subjects, loading, error, addEvent, updateEvent, deleteEvent, savePlan, addSubject, deleteSubject } = useStore()
+  const { events, plans, subjects, loading, error, addEvent, updateEvent, deleteEvent, savePlan, addSubject, deleteSubject, loadVigilancias, saveVigilancias } = useStore()
 
   const navigate = (view) => { setActiveView(view); setSidebarOpen(false) }
 
@@ -68,6 +68,7 @@ export default function App() {
               events={events} subjects={subjects}
               onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent}
               onAddSubject={addSubject} onDeleteSubject={deleteSubject}
+              onSaveVigilancias={saveVigilancias} onLoadVigilancias={loadVigilancias}
             />
           </main>
         </div>

@@ -86,5 +86,23 @@ export function useStore() {
     if (!error) setSubjects(prev => prev.filter(s => s.id !== id))
   }
 
-  return { events, plans, subjects, loading, error, addEvent, updateEvent, deleteEvent, savePlan, addSubject, deleteSubject }
+  const loadVigilancias = async () => {
+    if (missingConfig) return null
+    const { data, error } = await supabase
+      .from('vigilancias_config')
+      .select('data, updated_at')
+      .eq('id', 'main')
+      .single()
+    if (error) return null
+    return data
+  }
+
+  const saveVigilancias = async (parsedData) => {
+    const { error } = await supabase
+      .from('vigilancias_config')
+      .upsert({ id: 'main', data: parsedData, updated_at: new Date().toISOString() })
+    return !error
+  }
+
+  return { events, plans, subjects, loading, error, addEvent, updateEvent, deleteEvent, savePlan, addSubject, deleteSubject, loadVigilancias, saveVigilancias }
 }
