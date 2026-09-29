@@ -1,4 +1,4 @@
-import { Menu, Bell } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -23,12 +23,6 @@ export default function Header({ activeView, viewTitles = {}, onMenuToggle, even
         </div>
       </div>
 
-      {eventCount > 0 && (
-        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-1.5">
-          <Bell size={14} className="text-red-500" />
-          <span className="text-red-600 text-xs font-semibold">{eventCount} urgente{eventCount > 1 ? 's' : ''}</span>
-        </div>
-      )}
     </header>
   )
 }
