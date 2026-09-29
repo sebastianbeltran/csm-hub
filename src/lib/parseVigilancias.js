@@ -52,20 +52,22 @@ function parseSectionRows(data, startIdx, stopFn) {
 export function parseVigilanciaExcel(arrayBuffer) {
   const wb = XLSX.read(arrayBuffer, { type: 'array' })
 
-  // ── Vigilancias semanales (sheet sin espacio) ──────────────
-  const wsVig = wb.Sheets['VIGILANCIAS HIGH 26-27']
-  if (!wsVig) throw new Error('No se encontró la hoja "VIGILANCIAS HIGH 26-27"')
-  const vigData = XLSX.utils.sheet_to_json(wsVig, { header: 1, defval: '' })
+  // ── Usa la hoja con espacio para todo (vigilancias + carros + rutas) ──
+  const sheetName = Object.keys(wb.Sheets).find(n => n.trim() === 'VIGILANCIAS HIGH 26-27')
+  if (!sheetName) throw new Error('No se encontró la hoja "VIGILANCIAS HIGH 26-27"')
+  const allData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: '' })
 
   const vigilancias = []
   let currentSection = ''
   let lastEntry = null
 
-  for (let i = 3; i < vigData.length; i++) {
-    const row = vigData[i]
+  for (let i = 3; i < allData.length; i++) {
+    const row = allData[i]
     if (!row || !row.some(c => c !== '')) continue
     const [hora, ...rest] = row
     const horaClean = String(hora).trim()
+
+    if (horaClean.startsWith('ACOMPAÑAMIENTOS') || horaClean.includes('🚗') || horaClean.includes('🚌')) break
 
     if (horaClean === 'DESCANSO' || horaClean === 'ALMUERZO') {
       currentSection = horaClean
@@ -87,11 +89,6 @@ export function parseVigilanciaExcel(arrayBuffer) {
     vigilancias.push(entry)
     lastEntry = entry
   }
-
-  // ── Carros y Rutas (sheet con espacio) ────────────────────
-  const wsAll = wb.Sheets[' VIGILANCIAS HIGH 26-27']
-  if (!wsAll) throw new Error('No se encontró la hoja " VIGILANCIAS HIGH 26-27"')
-  const allData = XLSX.utils.sheet_to_json(wsAll, { header: 1, defval: '' })
 
   let carrosEarlyStart = -1, carrosMainStart = -1
   let rutasEarlyStart = -1, rutasMainStart = -1

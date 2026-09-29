@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  format, parseISO, isToday, isPast, differenceInDays,
+  format, parseISO, isToday, isPast, differenceInDays, startOfToday,
   addDays, addWeeks, addMonths,
   startOfWeek, endOfWeek, startOfMonth, endOfMonth,
   eachDayOfInterval, isSameDay, isSameMonth,
@@ -24,7 +24,7 @@ function eventsForDay(events, day) {
 function relDate(dateStr) {
   try {
     const d = parseISO(dateStr)
-    const days = differenceInDays(d, new Date())
+    const days = differenceInDays(d, startOfToday())
     if (isToday(d)) return { label: 'Hoy', chip: 'bg-green-700 text-white' }
     if (days === 1) return { label: 'Mañana', chip: 'bg-amber-500 text-white' }
     if (days > 1 && days <= 7) return { label: `En ${days} días`, chip: 'bg-slate-200 text-slate-600' }
@@ -34,7 +34,7 @@ function relDate(dateStr) {
 }
 
 export default function Dashboard({ events }) {
-  const [view, setView] = useState('day')
+  const [view, setView] = useState('week')
   const [focusDate, setFocusDate] = useState(new Date())
   const [modalEvent, setModalEvent] = useState(null)
 
@@ -62,12 +62,12 @@ export default function Dashboard({ events }) {
       : format(focusDate, "MMMM yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase())
 
   const upcoming = events
-    .filter(e => { try { return differenceInDays(parseISO(e.date), new Date()) >= 0 || isToday(parseISO(e.date)) } catch { return false } })
+    .filter(e => { try { return differenceInDays(parseISO(e.date), startOfToday()) >= 0 } catch { return false } })
     .sort((a, b) => new Date(a.date) - new Date(b.date))
 
   const todayEvents = eventsForDay(events, new Date())
   const urgentCount = events.filter(e => {
-    try { const d = differenceInDays(parseISO(e.date), new Date()); return d >= 0 && d <= 3 && e.priority === 'high' } catch { return false }
+    try { const d = differenceInDays(parseISO(e.date), startOfToday()); return d >= 0 && d <= 3 && e.priority === 'high' } catch { return false }
   }).length
 
   const hour = new Date().getHours()
