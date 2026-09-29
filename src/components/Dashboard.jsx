@@ -99,7 +99,7 @@ export default function Dashboard({ events }) {
         {urgentCount > 0 && (
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-1.5">
             <AlertCircle size={14} className="text-red-500" />
-            <span className="text-red-600 text-sm font-semibold">{urgentCount} urgente{urgentCount > 1 ? 's' : ''} próximos</span>
+            <span className="text-red-600 text-sm font-semibold">{urgentCount} evento{urgentCount > 1 ? 's' : ''} urgente{urgentCount > 1 ? 's' : ''}</span>
           </div>
         )}
       </div>
