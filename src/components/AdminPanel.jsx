@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { Plus, Trash2, Calendar, BookOpen, Lock, Pencil, X, Eye, Upload, CheckCircle, AlertCircle } from 'lucide-react'
 import { CATEGORY_STYLES } from '../data/constants'
 import { format, parseISO } from 'date-fns'
@@ -103,6 +103,23 @@ function EventsTab({ events, onAdd, onUpdate, onDelete }) {
   const [form, setForm]         = useState(emptyEvent)
   const [editingId, setEditingId] = useState(null)
   const [success, setSuccess]   = useState(false)
+  const descRef = useRef(null)
+
+  const insertLink = useCallback(() => {
+    const ta = descRef.current
+    if (!ta) return
+    const start = ta.selectionStart
+    const end = ta.selectionEnd
+    const selected = form.description.slice(start, end)
+    const snippet = selected ? `[${selected}](url)` : `[texto](url)`
+    const next = form.description.slice(0, start) + snippet + form.description.slice(end)
+    setForm(f => ({ ...f, description: next }))
+    setTimeout(() => {
+      ta.focus()
+      const urlPos = start + (selected ? selected.length : 6) + 2
+      ta.setSelectionRange(urlPos, urlPos + 3)
+    }, 0)
+  }, [form.description])
 
   const startEdit = (event) => {
     setEditingId(event.id)
@@ -155,9 +172,19 @@ function EventsTab({ events, onAdd, onUpdate, onDelete }) {
               </Field>
             </div>
             <Field label="Descripción">
-              <textarea placeholder="Detalles adicionales" value={form.description}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                rows={3} className={`${inp} resize-none`} />
+              <div className="space-y-1">
+                <div className="flex gap-1">
+                  <button type="button" onClick={insertLink}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                    title="Insertar enlace — selecciona texto primero o inserta plantilla">
+                    🔗 Enlace
+                  </button>
+                </div>
+                <textarea ref={descRef} placeholder="Detalles adicionales. Pega una URL directamente o usa 🔗 para insertar [texto](url)"
+                  value={form.description}
+                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                  rows={3} className={`${inp} resize-none`} />
+              </div>
             </Field>
             <div className="flex gap-2">
               {editingId && (

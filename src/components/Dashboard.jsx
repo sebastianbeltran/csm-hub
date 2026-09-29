@@ -13,6 +13,24 @@ import {
 import { CATEGORY_STYLES } from '../data/constants'
 import ViglanciasHoy from './ViglanciasHoy'
 
+function renderDescription(text) {
+  if (!text) return null
+  const regex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)|(https?:\/\/\S+)/g
+  const nodes = []
+  let last = 0, match, i = 0
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > last) nodes.push(text.slice(last, match.index))
+    if (match[1]) {
+      nodes.push(<a key={i++} href={match[2]} target="_blank" rel="noopener noreferrer" className="text-green-700 underline hover:text-green-800 break-all">{match[1]}</a>)
+    } else {
+      nodes.push(<a key={i++} href={match[3]} target="_blank" rel="noopener noreferrer" className="text-green-700 underline hover:text-green-800 break-all">{match[3]}</a>)
+    }
+    last = match.index + match[0].length
+  }
+  if (last < text.length) nodes.push(text.slice(last))
+  return nodes
+}
+
 const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
 function eventsForDay(events, day) {
@@ -295,7 +313,7 @@ function DayCard({ event }) {
         {event.priority === 'high' && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">⚠ Alta</span>}
       </div>
       <p className="text-sm font-bold text-slate-800">{event.title}</p>
-      {event.description && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{event.description}</p>}
+      {event.description && <p className="text-xs text-slate-500 mt-1 leading-relaxed break-words">{renderDescription(event.description)}</p>}
     </div>
   )
 }
@@ -417,24 +435,28 @@ function EventModal({ event, onClose }) {
   const past = isPast(date) && !isToday(date)
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-        <div className="p-6">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-6 pb-4 flex-shrink-0">
           <div className="flex items-start justify-between mb-4">
             <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>{style.label}</span>
             <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-lg transition-colors"><X size={18} className="text-slate-400" /></button>
           </div>
-          <h3 className="text-lg font-bold text-slate-800 mb-4">{event.title}</h3>
-          <div className="space-y-3">
-            <p className="text-sm text-slate-500 flex items-center gap-2">
-              📅 {format(date, "EEEE d 'de' MMMM yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase())}
-              {past && <span className="text-red-500 text-xs font-semibold bg-red-50 px-2 py-0.5 rounded-full">Vencido</span>}
-              {isToday(date) && <span className="text-green-700 text-xs font-semibold bg-green-50 px-2 py-0.5 rounded-full">Hoy</span>}
-            </p>
-            {event.description && <p className="text-slate-600 text-sm bg-slate-50 rounded-xl p-3 leading-relaxed">{event.description}</p>}
-            {event.priority === 'high' && <div className="text-red-600 bg-red-50 rounded-xl p-3 text-sm font-medium">⚠️ Alta prioridad — no olvidar</div>}
-          </div>
+          <h3 className="text-lg font-bold text-slate-800 break-words">{event.title}</h3>
         </div>
-        <div className="px-6 pb-6 flex justify-end">
+        <div className="px-6 overflow-y-auto flex-1 space-y-3 pb-2">
+          <p className="text-sm text-slate-500 flex items-center flex-wrap gap-2">
+            📅 {format(date, "EEEE d 'de' MMMM yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase())}
+            {past && <span className="text-red-500 text-xs font-semibold bg-red-50 px-2 py-0.5 rounded-full">Vencido</span>}
+            {isToday(date) && <span className="text-green-700 text-xs font-semibold bg-green-50 px-2 py-0.5 rounded-full">Hoy</span>}
+          </p>
+          {event.description && (
+            <p className="text-slate-600 text-sm bg-slate-50 rounded-xl p-3 leading-relaxed break-words whitespace-pre-wrap">
+              {renderDescription(event.description)}
+            </p>
+          )}
+          {event.priority === 'high' && <div className="text-red-600 bg-red-50 rounded-xl p-3 text-sm font-medium">⚠️ Alta prioridad — no olvidar</div>}
+        </div>
+        <div className="px-6 py-4 flex-shrink-0 flex justify-end border-t border-slate-100">
           <button onClick={onClose} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors text-sm font-medium">
             Cerrar
           </button>
