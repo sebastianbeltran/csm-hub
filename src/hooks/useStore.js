@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, missingConfig } from '../lib/supabase'
 
+const normalizeCounseling = (s) => ({
+  ...s,
+  studentName: s.student_name ?? s.studentName ?? '',
+  sessionDate: s.session_date ?? s.sessionDate ?? '',
+  sessionTime: s.session_time ?? s.sessionTime ?? '',
+})
+
+const sortCounseling = (a, b) => {
+  const d = new Date(a.sessionDate) - new Date(b.sessionDate)
+  return d !== 0 ? d : a.sessionTime.localeCompare(b.sessionTime)
+}
+
 // Supabase returns snake_case; normalize to camelCase for the app
 const normalizePlan = (p) => ({
   ...p,
@@ -17,11 +29,12 @@ const normalizePlan = (p) => ({
 })
 
 export function useStore() {
-  const [events,   setEvents]   = useState([])
-  const [plans,    setPlans]    = useState([])
-  const [subjects, setSubjects] = useState([])
-  const [loading,  setLoading]  = useState(true)
-  const [error,    setError]    = useState(null)
+  const [events,             setEvents]             = useState([])
+  const [plans,              setPlans]              = useState([])
+  const [subjects,           setSubjects]           = useState([])
+  const [counselingSessions, setCounselingSessions] = useState([])
+  const [loading,            setLoading]            = useState(true)
+  const [error,              setError]              = useState(null)
 
   const loadAll = useCallback(async () => {
     if (missingConfig) {
@@ -32,17 +45,19 @@ export function useStore() {
     setLoading(true)
     setError(null)
     try {
-      const [evtsRes, plnsRes, subsRes] = await Promise.all([
+      const [evtsRes, plnsRes, subsRes, counselRes] = await Promise.all([
         supabase.from('events').select('*').order('date', { ascending: true }),
         supabase.from('plans').select('*'),
         supabase.from('subjects').select('*').order('grade').order('created_at'),
+        supabase.from('counseling_sessions').select('*').order('session_date').order('session_time'),
       ])
-      if (evtsRes.error) throw evtsRes.error
-      if (plnsRes.error) throw plnsRes.error
-      if (subsRes.error) throw subsRes.error
+      if (evtsRes.error)   throw evtsRes.error
+      if (plnsRes.error)   throw plnsRes.error
+      if (subsRes.error)   throw subsRes.error
       setEvents(evtsRes.data ?? [])
       setPlans((plnsRes.data ?? []).map(normalizePlan))
       setSubjects(subsRes.data ?? [])
+      if (!counselRes.error) setCounselingSessions((counselRes.data ?? []).map(normalizeCounseling))
     } catch (err) {
       setError(err.message ?? 'Error al conectar con la base de datos')
     } finally {
@@ -86,6 +101,30 @@ export function useStore() {
     if (!error) setSubjects(prev => prev.filter(s => s.id !== id))
   }
 
+  const addCounselingSession = async (session) => {
+    const row = {
+      student_name: session.studentName,
+      grade:        session.grade,
+      session_date: session.sessionDate,
+      session_time: session.sessionTime,
+      attended:     null,
+      notes:        session.notes || null,
+    }
+    const { data, error } = await supabase.from('counseling_sessions').insert(row).select().single()
+    if (!error && data) setCounselingSessions(prev => [...prev, normalizeCounseling(data)].sort(sortCounseling))
+    return !error
+  }
+
+  const deleteCounselingSession = async (id) => {
+    const { error } = await supabase.from('counseling_sessions').delete().eq('id', id)
+    if (!error) setCounselingSessions(prev => prev.filter(s => s.id !== id))
+  }
+
+  const updateCounselingAttendance = async (id, attended) => {
+    const { data, error } = await supabase.from('counseling_sessions').update({ attended }).eq('id', id).select().single()
+    if (!error && data) setCounselingSessions(prev => prev.map(s => s.id === id ? normalizeCounseling(data) : s))
+  }
+
   const loadVigilancias = async () => {
     if (missingConfig) return null
     const { data, error } = await supabase
@@ -104,5 +143,12 @@ export function useStore() {
     return !error
   }
 
-  return { events, plans, subjects, loading, error, addEvent, updateEvent, deleteEvent, savePlan, addSubject, deleteSubject, loadVigilancias, saveVigilancias }
+  return {
+    events, plans, subjects, counselingSessions, loading, error,
+    addEvent, updateEvent, deleteEvent,
+    savePlan,
+    addSubject, deleteSubject,
+    addCounselingSession, deleteCounselingSession, updateCounselingAttendance,
+    loadVigilancias, saveVigilancias,
+  }
 }

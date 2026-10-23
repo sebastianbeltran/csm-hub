@@ -1,13 +1,9 @@
 import { useState, useRef, useCallback } from 'react'
-import { Plus, Trash2, Calendar, BookOpen, Lock, Pencil, X, Eye, Upload, CheckCircle, AlertCircle } from 'lucide-react'
-import { CATEGORY_STYLES } from '../data/constants'
+import { Plus, Trash2, Calendar, BookOpen, Pencil, X, Eye, Upload, CheckCircle, AlertCircle, LogIn, ShieldAlert } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { CATEGORY_STYLES } from '../data/constants'
 import { parseVigilanciaExcel } from '../lib/parseVigilancias'
-
-// ─── Cambiar esta contraseña ────────────────────────────
-const ADMIN_PASSWORD = 'CSM2026'
-// ────────────────────────────────────────────────────────
 
 const GRADES = ['9', '10', '11']
 const PRIORITIES = [
@@ -17,62 +13,48 @@ const PRIORITIES = [
 ]
 const emptyEvent = { title: '', description: '', date: '', category: 'academico', priority: 'medium' }
 
-export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, onSaveVigilancias, onLoadVigilancias }) {
-  const [unlocked, setUnlocked] = useState(
-    () => sessionStorage.getItem('csm_admin') === 'true'
+export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, onSaveVigilancias, onLoadVigilancias, role, onRequestLogin }) {
+  if (!role) return <LoginRequired onRequestLogin={onRequestLogin} />
+  if (role !== 'admin') return <AccessDenied />
+
+  return (
+    <AdminContent
+      events={events} subjects={subjects}
+      onAddEvent={onAddEvent} onUpdateEvent={onUpdateEvent} onDeleteEvent={onDeleteEvent}
+      onAddSubject={onAddSubject} onDeleteSubject={onDeleteSubject}
+      onSaveVigilancias={onSaveVigilancias} onLoadVigilancias={onLoadVigilancias}
+    />
   )
-
-  const unlock = () => {
-    setUnlocked(true)
-    sessionStorage.setItem('csm_admin', 'true')
-  }
-
-  if (!unlocked) return <PasswordGate onUnlock={unlock} />
-
-  return <AdminContent
-    events={events} subjects={subjects}
-    onAddEvent={onAddEvent} onUpdateEvent={onUpdateEvent} onDeleteEvent={onDeleteEvent}
-    onAddSubject={onAddSubject} onDeleteSubject={onDeleteSubject}
-    onSaveVigilancias={onSaveVigilancias} onLoadVigilancias={onLoadVigilancias}
-  />
 }
 
-/* ─── Password Gate ─────────────────────────────────── */
-function PasswordGate({ onUnlock }) {
-  const [pwd, setPwd]     = useState('')
-  const [error, setError] = useState(false)
-
-  const handle = (e) => {
-    e.preventDefault()
-    if (pwd === ADMIN_PASSWORD) {
-      onUnlock()
-    } else {
-      setError(true)
-      setTimeout(() => setError(false), 2000)
-    }
-  }
-
+/* ─── Auth gates ─────────────────────────────────────── */
+function LoginRequired({ onRequestLogin }) {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full max-w-sm text-center">
         <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <Lock size={22} className="text-green-700" />
+          <LogIn size={22} className="text-green-700" />
         </div>
-        <h2 className="text-lg font-bold text-slate-800 mb-1">Panel de administración</h2>
-        <p className="text-sm text-slate-400 mb-6">Ingresa la contraseña para continuar</p>
-        <form onSubmit={handle} className="space-y-3">
-          <input
-            type="password" value={pwd} onChange={e => setPwd(e.target.value)}
-            placeholder="Contraseña"
-            autoFocus
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-center font-semibold tracking-widest focus:outline-none focus:ring-2 focus:ring-green-600"
-          />
-          {error && <p className="text-red-500 text-sm font-medium">Contraseña incorrecta</p>}
-          <button type="submit"
-            className="w-full py-3 bg-green-700 text-white rounded-xl font-bold text-sm hover:bg-green-800 transition-colors">
-            Entrar
-          </button>
-        </form>
+        <h2 className="text-lg font-bold text-slate-800 mb-1">Acceso restringido</h2>
+        <p className="text-sm text-slate-400 mb-6">Inicia sesión con tu cuenta de administrador para continuar</p>
+        <button onClick={onRequestLogin}
+          className="w-full py-3 bg-green-700 text-white rounded-xl font-bold text-sm hover:bg-green-800 transition-colors">
+          Iniciar sesión
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function AccessDenied() {
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full max-w-sm text-center">
+        <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <ShieldAlert size={22} className="text-red-500" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-800 mb-1">Sin permisos</h2>
+        <p className="text-sm text-slate-400">Tu cuenta no tiene acceso al panel de administración.</p>
       </div>
     </div>
   )
@@ -84,11 +66,10 @@ function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEve
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto">
-      {/* Tabs */}
       <div className="flex gap-2 bg-white border border-slate-200 rounded-2xl p-1.5 w-fit">
-        <TabBtn active={tab === 'events'} onClick={() => setTab('events')} icon={<Calendar size={14} />} label="Calendario" />
-        <TabBtn active={tab === 'subjects'} onClick={() => setTab('subjects')} icon={<BookOpen size={14} />} label="Materias" />
-        <TabBtn active={tab === 'vigilancias'} onClick={() => setTab('vigilancias')} icon={<Eye size={14} />} label="Vigilancias" />
+        <TabBtn active={tab === 'events'}      onClick={() => setTab('events')}      icon={<Calendar size={14} />} label="Calendario"  />
+        <TabBtn active={tab === 'subjects'}    onClick={() => setTab('subjects')}    icon={<BookOpen size={14} />} label="Materias"    />
+        <TabBtn active={tab === 'vigilancias'} onClick={() => setTab('vigilancias')} icon={<Eye size={14} />}      label="Vigilancias" />
       </div>
 
       {tab === 'events'      && <EventsTab events={events} onAdd={onAddEvent} onUpdate={onUpdateEvent} onDelete={onDeleteEvent} />}
@@ -100,16 +81,16 @@ function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEve
 
 /* ─── Events Tab ─────────────────────────────────────── */
 function EventsTab({ events, onAdd, onUpdate, onDelete }) {
-  const [form, setForm]         = useState(emptyEvent)
+  const [form, setForm]           = useState(emptyEvent)
   const [editingId, setEditingId] = useState(null)
-  const [success, setSuccess]   = useState(false)
+  const [success, setSuccess]     = useState(false)
   const descRef = useRef(null)
 
   const insertLink = useCallback(() => {
     const ta = descRef.current
     if (!ta) return
     const start = ta.selectionStart
-    const end = ta.selectionEnd
+    const end   = ta.selectionEnd
     const selected = form.description.slice(start, end)
     const snippet = selected ? `[${selected}](url)` : `[texto](url)`
     const next = form.description.slice(0, start) + snippet + form.description.slice(end)
@@ -145,10 +126,8 @@ function EventsTab({ events, onAdd, onUpdate, onDelete }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       <div className="lg:col-span-2">
-        <Card
-          title={editingId ? 'Editar evento' : 'Agregar evento'}
-          icon={<Calendar size={15} className={editingId ? 'text-amber-500' : 'text-green-600'} />}
-        >
+        <Card title={editingId ? 'Editar evento' : 'Agregar evento'}
+          icon={<Calendar size={15} className={editingId ? 'text-amber-500' : 'text-green-600'} />}>
           <form onSubmit={handleSubmit} className="space-y-4">
             <Field label="Título *">
               <input type="text" placeholder="Ej: Entrega de notas"
@@ -176,23 +155,24 @@ function EventsTab({ events, onAdd, onUpdate, onDelete }) {
                 <div className="flex gap-1">
                   <button type="button" onClick={insertLink}
                     className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                    title="Insertar enlace — selecciona texto primero o inserta plantilla">
+                    title="Insertar enlace">
                     🔗 Enlace
                   </button>
                 </div>
                 <textarea ref={descRef} placeholder="Detalles adicionales. Pega una URL directamente o usa 🔗 para insertar [texto](url)"
-                  value={form.description}
-                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                  value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   rows={3} className={`${inp} resize-none`} />
               </div>
             </Field>
             <div className="flex gap-2">
               {editingId && (
-                <button type="button" onClick={cancelEdit} className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-500 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors">
+                <button type="button" onClick={cancelEdit}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-500 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors">
                   <X size={15} /> Cancelar
                 </button>
               )}
-              <button type="submit" className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-white rounded-xl font-bold text-sm transition-colors ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-700 hover:bg-green-800'}`}>
+              <button type="submit"
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-white rounded-xl font-bold text-sm transition-colors ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-700 hover:bg-green-800'}`}>
                 {editingId ? <><Pencil size={15} /> Guardar cambios</> : <><Plus size={15} /> Agregar evento</>}
               </button>
             </div>
@@ -219,10 +199,12 @@ function EventsTab({ events, onAdd, onUpdate, onDelete }) {
                     </div>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => startEdit(event)} className="p-1.5 text-slate-300 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors">
+                    <button onClick={() => startEdit(event)}
+                      className="p-1.5 text-slate-300 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors">
                       <Pencil size={14} />
                     </button>
-                    <button onClick={() => onDelete(event.id)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                    <button onClick={() => onDelete(event.id)}
+                      className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -238,8 +220,8 @@ function EventsTab({ events, onAdd, onUpdate, onDelete }) {
 
 /* ─── Subjects Tab ───────────────────────────────────── */
 function SubjectsTab({ subjects, onAdd, onDelete }) {
-  const [grade, setGrade]   = useState('9')
-  const [label, setLabel]   = useState('')
+  const [grade, setGrade]     = useState('9')
+  const [label, setLabel]     = useState('')
   const [success, setSuccess] = useState(false)
 
   const gradeSubjects = subjects.filter(s => s.grade === grade)
@@ -272,7 +254,8 @@ function SubjectsTab({ subjects, onAdd, onDelete }) {
               <input type="text" placeholder="Ej: Filosofía" value={label}
                 onChange={e => setLabel(e.target.value)} className={inp} required />
             </Field>
-            <button type="submit" className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors">
+            <button type="submit"
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors">
               <Plus size={15} /> Agregar materia
             </button>
             {success && <p className="text-center text-emerald-600 text-sm font-semibold">✓ Materia agregada</p>}
@@ -281,7 +264,6 @@ function SubjectsTab({ subjects, onAdd, onDelete }) {
       </div>
       <div className="lg:col-span-3">
         <Card title="Materias por grado">
-          {/* Grade tabs */}
           <div className="flex gap-2 mb-4">
             {GRADES.map(g => (
               <button key={g} onClick={() => setGrade(g)}
@@ -312,11 +294,10 @@ function SubjectsTab({ subjects, onAdd, onDelete }) {
 /* ─── Vigilancias Tab ────────────────────────────────── */
 function ViglanciasTab({ onSave, onLoad }) {
   const fileRef = useRef(null)
-  const [status, setStatus] = useState(null) // null | 'parsing' | 'saving' | 'ok' | { error: string }
-  const [preview, setPreview] = useState(null)
+  const [status,      setStatus]      = useState(null)
+  const [preview,     setPreview]     = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
 
-  // Cargar fecha de última actualización al montar
   useState(() => {
     onLoad?.().then(row => { if (row?.updated_at) setLastUpdated(row.updated_at) })
   })
@@ -361,12 +342,10 @@ function ViglanciasTab({ onSave, onLoad }) {
   return (
     <Card title="Actualizar datos de vigilancias" icon={<Eye size={15} className="text-green-600" />}>
       <div className="space-y-5">
-        {/* Info */}
         <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-600 space-y-1">
           <p>Sube el Excel de vigilancias para actualizar los datos del dashboard.</p>
           <p className="text-xs text-slate-400">
-            El archivo debe tener las hojas <strong>"VIGILANCIAS HIGH 26-27"</strong> y{' '}
-            <strong>" VIGILANCIAS HIGH 26-27"</strong> con el mismo formato que el original.
+            El archivo debe tener la hoja <strong>" VIGILANCIAS HIGH 26-27"</strong> con el mismo formato que el original.
           </p>
           {lastUpdated && (
             <p className="text-xs text-green-700 mt-2 font-medium">
@@ -376,7 +355,6 @@ function ViglanciasTab({ onSave, onLoad }) {
           )}
         </div>
 
-        {/* File input */}
         <div>
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
             Archivo Excel (.xlsx)
@@ -388,18 +366,11 @@ function ViglanciasTab({ onSave, onLoad }) {
             <span className="text-sm text-slate-500">
               {status === 'parsing' ? 'Procesando...' : 'Seleccionar archivo'}
             </span>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={handleFile}
-              disabled={status === 'parsing' || status === 'saving'}
-            />
+            <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
+              onChange={handleFile} disabled={status === 'parsing' || status === 'saving'} />
           </label>
         </div>
 
-        {/* Error */}
         {status?.error && (
           <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
             <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
@@ -407,7 +378,6 @@ function ViglanciasTab({ onSave, onLoad }) {
           </div>
         )}
 
-        {/* Success */}
         {status === 'ok' && (
           <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl p-3">
             <CheckCircle size={16} className="text-green-600" />
@@ -415,7 +385,6 @@ function ViglanciasTab({ onSave, onLoad }) {
           </div>
         )}
 
-        {/* Preview */}
         {preview && (
           <div className="space-y-3">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Vista previa</p>
@@ -433,29 +402,13 @@ function ViglanciasTab({ onSave, onLoad }) {
                 <p className="text-xs text-purple-500 font-medium mt-0.5">Semanas rutas</p>
               </div>
             </div>
-            <div className="bg-slate-50 rounded-xl p-3 max-h-40 overflow-y-auto">
-              <p className="text-xs font-semibold text-slate-500 mb-2">Carros — primera semana:</p>
-              {preview.carros[0] && (
-                <div className="text-xs text-slate-600 space-y-0.5">
-                  <p className="font-medium text-slate-800">{preview.carros[0].label}</p>
-                  {['lunes','martes','miercoles','jueves','viernes'].map(d => (
-                    <p key={d}><span className="text-slate-400 w-16 inline-block capitalize">{d}:</span> {preview.carros[0][d] || '—'}</p>
-                  ))}
-                </div>
-              )}
-            </div>
             <div className="flex gap-2">
-              <button
-                onClick={handleCancel}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-500 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors"
-              >
+              <button onClick={handleCancel}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-500 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors">
                 <X size={15} /> Cancelar
               </button>
-              <button
-                onClick={handleSave}
-                disabled={status === 'saving'}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-700 text-white rounded-xl font-bold text-sm hover:bg-green-800 transition-colors disabled:opacity-60"
-              >
+              <button onClick={handleSave} disabled={status === 'saving'}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-700 text-white rounded-xl font-bold text-sm hover:bg-green-800 transition-colors disabled:opacity-60">
                 {status === 'saving' ? 'Guardando...' : <><Upload size={15} /> Guardar en Supabase</>}
               </button>
             </div>

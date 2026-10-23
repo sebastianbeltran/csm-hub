@@ -1,26 +1,38 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import Dashboard from './components/Dashboard'
 import LessonPlan from './components/LessonPlan'
 import AdminPanel from './components/AdminPanel'
+import CollegeCounselor from './components/CollegeCounselor'
+import Login from './components/Login'
 import { useStore } from './hooks/useStore'
+import { useAuth } from './hooks/useAuth'
 import { parseISO, differenceInDays } from 'date-fns'
 
 const VIEW_TITLES = {
   dashboard: 'Dashboard',
   plans:     'Plan Semanal',
+  counselor: 'College Counseling',
   admin:     'Panel de Administración',
 }
 
 const isAdminRoute = () => window.location.pathname === '/admin'
 
 export default function App() {
-  const [activeView, setActiveView] = useState(
-    isAdminRoute() ? 'admin' : 'dashboard'
-  )
+  const [activeView,  setActiveView]  = useState(isAdminRoute() ? 'admin' : 'dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { events, plans, subjects, loading, error, addEvent, updateEvent, deleteEvent, savePlan, addSubject, deleteSubject, loadVigilancias, saveVigilancias } = useStore()
+  const [showLogin,   setShowLogin]   = useState(false)
+
+  const { events, plans, subjects, counselingSessions, loading, error,
+    addEvent, updateEvent, deleteEvent,
+    savePlan,
+    addSubject, deleteSubject,
+    addCounselingSession, deleteCounselingSession, updateCounselingAttendance,
+    loadVigilancias, saveVigilancias,
+  } = useStore()
+
+  const { role, fullName, authLoading, login, logout } = useAuth()
 
   const navigate = (view) => { setActiveView(view); setSidebarOpen(false) }
 
@@ -31,7 +43,7 @@ export default function App() {
     } catch { return false }
   }).length
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-100">
         <div className="text-center">
@@ -49,7 +61,8 @@ export default function App() {
           <p className="text-2xl mb-3">⚠️</p>
           <p className="text-red-600 font-bold mb-2">Error de conexión</p>
           <p className="text-slate-500 text-sm">{error}</p>
-          <button onClick={() => window.location.reload()} className="mt-5 px-5 py-2 bg-green-700 text-white rounded-xl text-sm font-semibold hover:bg-green-800 transition-colors">
+          <button onClick={() => window.location.reload()}
+            className="mt-5 px-5 py-2 bg-green-700 text-white rounded-xl text-sm font-semibold hover:bg-green-800 transition-colors">
             Reintentar
           </button>
         </div>
@@ -57,10 +70,11 @@ export default function App() {
     )
   }
 
-  // Ruta /admin — sin sidebar, solo el panel protegido con contraseña
+  // Ruta /admin — sin sidebar
   if (isAdminRoute()) {
     return (
       <div className="flex h-screen bg-slate-100 overflow-hidden">
+        {showLogin && <Login onClose={() => setShowLogin(false)} onLogin={login} />}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <Header activeView="admin" viewTitles={VIEW_TITLES} onMenuToggle={() => {}} eventCount={0} />
           <main className="flex-1 overflow-y-auto p-4 sm:p-6">
@@ -69,6 +83,8 @@ export default function App() {
               onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent}
               onAddSubject={addSubject} onDeleteSubject={deleteSubject}
               onSaveVigilancias={saveVigilancias} onLoadVigilancias={loadVigilancias}
+              role={role}
+              onRequestLogin={() => setShowLogin(true)}
             />
           </main>
         </div>
@@ -78,12 +94,31 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden">
-      <Sidebar activeView={activeView} onNavigate={navigate} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {showLogin && <Login onClose={() => setShowLogin(false)} onLogin={login} />}
+      <Sidebar
+        activeView={activeView}
+        onNavigate={navigate}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        role={role}
+        fullName={fullName}
+        onLogin={() => setShowLogin(true)}
+        onLogout={logout}
+      />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header activeView={activeView} viewTitles={VIEW_TITLES} onMenuToggle={() => setSidebarOpen(o => !o)} eventCount={urgentCount} />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           {activeView === 'dashboard' && <Dashboard events={events} />}
           {activeView === 'plans'     && <LessonPlan plans={plans} subjects={subjects} onSave={savePlan} />}
+          {activeView === 'counselor' && (
+            <CollegeCounselor
+              sessions={counselingSessions}
+              role={role}
+              onAdd={addCounselingSession}
+              onDelete={deleteCounselingSession}
+              onUpdateAttendance={updateCounselingAttendance}
+            />
+          )}
         </main>
       </div>
     </div>
