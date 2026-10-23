@@ -9,14 +9,18 @@ const GRADE_COLORS = {
   '11': { bg: 'bg-amber-100',  text: 'text-amber-700'  },
 }
 
+const gradeColor = (grade = '') => {
+  const key = grade.replace(/[^0-9]/g, '')
+  return GRADE_COLORS[key] ?? { bg: 'bg-slate-100', text: 'text-slate-600' }
+}
+
 const attendanceBadge = (attended) => {
   if (attended === true)  return { label: 'Asistió',    cls: 'bg-green-100 text-green-700', icon: CheckCircle }
   if (attended === false) return { label: 'No asistió', cls: 'bg-red-100 text-red-600',     icon: XCircle    }
   return                         { label: 'Pendiente',  cls: 'bg-slate-100 text-slate-500', icon: Clock      }
 }
 
-const emptyForm = { studentName: '', grade: '9', sessionDate: '', sessionTime: '', notes: '' }
-const GRADES = ['9', '10', '11']
+const emptyForm = { studentName: '', grade: '', sessionDate: '', sessionTime: '', notes: '' }
 const inp = "w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
 
 const canManage = (role) => role === 'counselor' || role === 'admin'
@@ -33,7 +37,7 @@ export default function CollegeCounselor({ sessions = [], role, onAdd, onDelete,
   const filtered = useMemo(() => {
     return sessions
       .filter(s => {
-        if (gradeFilter !== 'all' && s.grade !== gradeFilter) return false
+        if (gradeFilter !== 'all' && !s.grade.startsWith(gradeFilter)) return false
         if (search && !s.studentName.toLowerCase().includes(search.toLowerCase())) return false
         try {
           const d = parseISO(s.sessionDate)
@@ -109,7 +113,12 @@ export default function CollegeCounselor({ sessions = [], role, onAdd, onDelete,
               <input
                 type="text" placeholder="Nombre de la estudiante" value={form.studentName}
                 onChange={e => setForm(f => ({ ...f, studentName: e.target.value }))}
-                className={`${inp} lg:col-span-2`} required autoFocus
+                className={inp} required autoFocus
+              />
+              <input
+                type="text" placeholder="Curso (ej: 10A)" value={form.grade}
+                onChange={e => setForm(f => ({ ...f, grade: e.target.value.toUpperCase() }))}
+                className={inp} required maxLength={4}
               />
               <input
                 type="date" value={form.sessionDate}
@@ -123,14 +132,6 @@ export default function CollegeCounselor({ sessions = [], role, onAdd, onDelete,
               />
             </div>
             <div className="flex gap-3 items-end">
-              <div className="flex bg-slate-100 rounded-xl p-1 gap-0.5">
-                {GRADES.map(g => (
-                  <button key={g} type="button" onClick={() => setForm(f => ({ ...f, grade: g }))}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
-                      form.grade === g ? 'bg-white text-green-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-                    }`}>{g}°</button>
-                ))}
-              </div>
               <input
                 type="text" placeholder="Notas (opcional)" value={form.notes}
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
@@ -244,7 +245,7 @@ function DateGroup({ date, sessions, canManage, onDelete, onUpdateAttendance }) 
 function SessionRow({ session, canManage, onDelete, onUpdateAttendance }) {
   const badge     = attendanceBadge(session.attended)
   const BadgeIcon = badge.icon
-  const grade     = GRADE_COLORS[session.grade] || GRADE_COLORS['9']
+  const grade     = gradeColor(session.grade)
   const time      = session.sessionTime?.slice(0, 5) ?? ''
 
   return (
