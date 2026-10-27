@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Eye, Car, Bus } from 'lucide-react'
+import { Eye, Car, Bus, Coffee, Utensils } from 'lucide-react'
 import staticData from '../data/vigilancias.json'
 import { supabase, missingConfig } from '../lib/supabase'
 
@@ -23,9 +23,9 @@ function useViglanciasData() {
 
 function SpotRow({ label, name }) {
   return (
-    <div className="flex items-baseline justify-between gap-2 py-1.5 border-b border-slate-50 last:border-0">
-      <span className="text-xs text-slate-400 flex-shrink-0 truncate max-w-[45%]">{label}</span>
-      <span className={`text-xs font-semibold text-right ${name ? 'text-slate-700' : 'text-slate-300'}`}>
+    <div className="flex items-baseline justify-between gap-2 py-1.5 border-b border-slate-100/80 last:border-0">
+      <span className="text-xs text-slate-500 flex-shrink-0 truncate max-w-[45%]">{label}</span>
+      <span className={`text-xs font-semibold text-right ${name ? 'text-slate-800' : 'text-slate-300'}`}>
         {name || '—'}
       </span>
     </div>
@@ -92,8 +92,8 @@ export default function ViglanciasHoy() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Descanso */}
               <div className="bg-amber-50 rounded-xl p-3">
-                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2">
-                  ☕ Descanso · 9:35 – 10:05
+                <p className="flex items-center gap-1.5 text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-2">
+                  <Coffee size={12} />Descanso · 9:35 – 10:05
                 </p>
                 {descanso.map((v, i) => (
                   <SpotRow
@@ -106,8 +106,8 @@ export default function ViglanciasHoy() {
 
               {/* Almuerzo */}
               <div className="bg-green-50 rounded-xl p-3">
-                <p className="text-[10px] font-bold text-green-700 uppercase tracking-wider mb-2">
-                  🍽 Almuerzo · 1:05 – 2:05
+                <p className="flex items-center gap-1.5 text-[11px] font-bold text-green-700 uppercase tracking-wider mb-2">
+                  <Utensils size={12} />Almuerzo · 1:05 – 2:05
                 </p>
                 {almuerzo.map((v, i) => {
                   const label = v.spot || v.slot.replace(/^1:\d+ - \d+:\d+\s*/, '').trim() || v.slot
@@ -127,7 +127,7 @@ export default function ViglanciasHoy() {
                 <div className="bg-slate-50 rounded-xl p-3">
                   <div className="flex items-center gap-1.5 mb-2">
                     <Car size={12} className="text-slate-500" />
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Carros</p>
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Carros</p>
                   </div>
                   {(['lunes','martes','miercoles','jueves','viernes']).map((d) => {
                     const name = carrosWeek[d]
@@ -140,7 +140,7 @@ export default function ViglanciasHoy() {
                           isToday ? 'bg-green-700/10 -mx-1 px-1 rounded-lg border-0' : ''
                         }`}
                       >
-                        <span className={`text-[11px] font-bold w-6 flex-shrink-0 ${isToday ? 'text-green-700' : 'text-slate-400'}`}>
+                        <span className={`text-xs font-bold w-6 flex-shrink-0 ${isToday ? 'text-green-700' : 'text-slate-400'}`}>
                           {shortLabel}
                         </span>
                         <span className={`text-xs font-semibold text-right flex-1 ${
@@ -164,7 +164,7 @@ export default function ViglanciasHoy() {
                 <div className="bg-slate-50 rounded-xl p-3">
                   <div className="flex items-center gap-1.5 mb-2">
                     <Bus size={12} className="text-slate-500" />
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Rutas</p>
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Rutas</p>
                   </div>
                   {(['lunes','martes','miercoles','jueves','viernes']).map((d) => {
                     const name = rutasWeek[d]
@@ -177,7 +177,7 @@ export default function ViglanciasHoy() {
                           isToday ? 'bg-green-700/10 -mx-1 px-1 rounded-lg border-0' : ''
                         }`}
                       >
-                        <span className={`text-[11px] font-bold w-6 flex-shrink-0 ${isToday ? 'text-green-700' : 'text-slate-400'}`}>
+                        <span className={`text-xs font-bold w-6 flex-shrink-0 ${isToday ? 'text-green-700' : 'text-slate-400'}`}>
                           {shortLabel}
                         </span>
                         <span className={`text-xs font-semibold text-right flex-1 ${

@@ -26,7 +26,7 @@ export default function Sidebar({ activeView, onNavigate, isOpen, onClose, role,
         lg:translate-x-0 lg:static lg:flex
       `}>
         {/* Logo */}
-        <div className="p-6 border-b border-slate-700/60">
+        <div className="p-6 border-b border-white/[0.07]">
           <div className="flex items-center gap-3">
             <img src="/csm-logo.png" alt="CSM" className="h-9 w-auto object-contain flex-shrink-0" />
             <div>
@@ -49,7 +49,7 @@ export default function Sidebar({ activeView, onNavigate, isOpen, onClose, role,
                   transition-all duration-150 text-left
                   ${active
                     ? 'bg-green-700 text-white shadow-lg shadow-green-900/40'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.07]'
                   }
                 `}
               >
@@ -61,13 +61,13 @@ export default function Sidebar({ activeView, onNavigate, isOpen, onClose, role,
         </nav>
 
         {/* Auth section */}
-        <div className="p-4 border-t border-slate-700/60 space-y-3">
+        <div className="p-4 border-t border-white/[0.07] space-y-3">
           {role ? (
             <LoggedIn role={role} fullName={fullName} onLogout={onLogout} />
           ) : (
             <button
               onClick={onLogin}
-              className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150"
+              className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/[0.07] transition-all duration-150"
             >
               <LogIn size={16} />
               Iniciar sesión
@@ -97,7 +97,7 @@ function LoggedIn({ role, fullName, onLogout }) {
       </div>
       <button
         onClick={onLogout}
-        className="w-full flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-white hover:bg-slate-800 transition-all duration-150"
+        className="w-full flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-white hover:bg-white/[0.07] transition-all duration-150"
       >
         <LogOut size={14} />
         Cerrar sesión

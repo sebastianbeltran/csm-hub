@@ -84,18 +84,18 @@ export default function CollegeCounselor({ sessions = [], role, onAdd, onDelete,
     <div className="space-y-5 max-w-4xl mx-auto">
 
       {/* Stats + add button */}
-      <div className="flex items-start gap-4">
-        <div className="grid grid-cols-3 gap-4 flex-1">
-          <StatCard label="Hoy"        value={todayCount}    color="bg-blue-50   text-blue-700"   />
-          <StatCard label="Pendientes" value={pendingCount}  color="bg-amber-50  text-amber-700"  />
-          <StatCard label="Asistidas"  value={attendedCount} color="bg-green-50  text-green-700"  />
+      <div className="flex items-center gap-4">
+        <div className="bg-white rounded-2xl border border-slate-200 flex-1 flex divide-x divide-slate-100">
+          <StatCard label="Hoy"        value={todayCount}    accent="text-blue-600"  bg="bg-blue-50"   />
+          <StatCard label="Pendientes" value={pendingCount}  accent="text-amber-600" bg="bg-amber-50"  />
+          <StatCard label="Asistidas"  value={attendedCount} accent="text-green-700" bg="bg-green-50"  />
         </div>
         {canManage(role) && (
           <button
             onClick={() => setShowForm(v => !v)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex-shrink-0 ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex-shrink-0 shadow-sm ${
               showForm
-                ? 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 : 'bg-green-700 text-white hover:bg-green-800'
             }`}
           >
@@ -143,7 +143,11 @@ export default function CollegeCounselor({ sessions = [], role, onAdd, onDelete,
                 {saving ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
-            {success && <p className="text-emerald-600 text-sm font-semibold mt-3">✓ Cita agregada</p>}
+            {success && (
+              <p className="flex items-center gap-1.5 text-emerald-600 text-sm font-semibold mt-3">
+                <CheckCircle size={14} />Cita agregada
+              </p>
+            )}
           </form>
         </div>
       )}
@@ -314,11 +318,13 @@ function AttendBtn({ active, onClick, cls, icon: Icon, title }) {
   )
 }
 
-function StatCard({ label, value, color }) {
+function StatCard({ label, value, accent, bg }) {
   return (
-    <div className={`rounded-2xl p-4 flex flex-col items-center justify-center ${color}`}>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs font-semibold mt-0.5 opacity-80">{label}</p>
+    <div className="flex-1 flex items-center gap-3 px-5 py-4">
+      <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center flex-shrink-0`}>
+        <span className={`text-base font-bold ${accent}`}>{value}</span>
+      </div>
+      <p className="text-sm font-semibold text-slate-600">{label}</p>
     </div>
   )
 }

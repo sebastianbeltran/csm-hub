@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { format, addWeeks, startOfWeek, addDays, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Save, Download, ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Save, Download, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react'
 
 const GRADES = ['9', '10', '11']
 
@@ -247,7 +247,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
 
         {/* Grade tabs */}
         <div>
-          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Grado</label>
+          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Grado</label>
           <div className="flex bg-slate-100 rounded-xl p-1 gap-0.5">
             {GRADES.map(g => (
               <button key={g} onClick={() => setGrade(g)}
@@ -261,7 +261,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
 
         {/* Subject */}
         <div className="flex-1 min-w-[200px]">
-          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Materia</label>
+          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Materia</label>
           <select value={subjectId} onChange={e => setSubjectId(e.target.value)}
             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-600">
             {gradeSubjects.length === 0
@@ -273,7 +273,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
 
         {/* Week */}
         <div>
-          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Semana</label>
+          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Semana</label>
           <div className="flex items-center gap-1.5">
             <button onClick={() => navWeek(-1)} className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50">
               <ChevronLeft size={14} className="text-slate-500" />
@@ -328,7 +328,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
             className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
               saved ? 'bg-emerald-600 text-white' : 'bg-green-700 text-white hover:bg-green-800'
             }`}>
-            <Save size={14} /> {saved ? '✓ Guardado' : 'Guardar'}
+            {saved ? <><CheckCircle size={14} /> Guardado</> : <><Save size={14} /> Guardar</>}
           </button>
         </div>
       </div>
@@ -359,7 +359,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
                 <div className="p-4 space-y-3">
                   {entry.actividades && (
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Actividades</p>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Actividades</p>
                       <p className="text-slate-600 text-xs leading-relaxed line-clamp-5">{entry.actividades}</p>
                     </div>
                   )}
@@ -369,7 +369,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
                   </div>
                   {entry.observaciones && (
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Observaciones</p>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Observaciones</p>
                       <p className="text-slate-600 text-xs leading-relaxed line-clamp-3">{entry.observaciones}</p>
                     </div>
                   )}
@@ -449,7 +449,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
               <button onClick={handleSave} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
                 saved ? 'bg-emerald-600 text-white' : 'bg-green-700 text-white hover:bg-green-800'
               }`}>
-                <Save size={15} /> {saved ? '✓ Guardado correctamente' : 'Guardar plan semanal'}
+                {saved ? <><CheckCircle size={15} /> Guardado correctamente</> : <><Save size={15} /> Guardar plan semanal</>}
               </button>
             </div>
           </div>

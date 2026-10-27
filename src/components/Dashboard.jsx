@@ -8,7 +8,7 @@ import {
 import { es } from 'date-fns/locale'
 import {
   Sun, CalendarDays, CalendarRange,
-  ChevronLeft, ChevronRight, X, AlertCircle,
+  ChevronLeft, ChevronRight, X, AlertCircle, CalendarX, Calendar,
 } from 'lucide-react'
 import { CATEGORY_STYLES } from '../data/constants'
 import ViglanciasHoy from './ViglanciasHoy'
@@ -111,19 +111,16 @@ export default function Dashboard({ events }) {
         <div className="lg:col-span-3 space-y-3">
           {/* Toolbar */}
           <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3 flex items-center gap-3 flex-wrap">
-            {/* View toggle */}
             <div className="flex items-center bg-slate-100 rounded-xl p-1 gap-0.5">
               <ViewBtn active={view === 'day'} onClick={() => setView('day')} icon={<Sun size={13} />} label="Día" />
               <ViewBtn active={view === 'week'} onClick={() => setView('week')} icon={<CalendarDays size={13} />} label="Semana" />
               <ViewBtn active={view === 'month'} onClick={() => setView('month')} icon={<CalendarRange size={13} />} label="Mes" />
             </div>
 
-            {/* Period label — solo en semana/mes */}
             {view !== 'day' && (
               <span className="flex-1 text-sm font-medium text-slate-600 hidden sm:block truncate">{periodLabel}</span>
             )}
 
-            {/* Navigation */}
             <div className="flex items-center gap-1.5 ml-auto">
               <button
                 onClick={() => { setFocusDate(new Date()) }}
@@ -142,13 +139,7 @@ export default function Dashboard({ events }) {
             </div>
           </div>
 
-          {/* Calendar content */}
-          {view === 'day' && (
-            <DayView
-              date={focusDate}
-              events={eventsForDay(events, focusDate)}
-            />
-          )}
+          {view === 'day' && <DayView date={focusDate} events={eventsForDay(events, focusDate)} />}
           {view === 'week' && (
             <WeekView
               focusDate={focusDate}
@@ -190,7 +181,10 @@ export default function Dashboard({ events }) {
 
             <div className="divide-y divide-slate-50 max-h-[620px] overflow-y-auto">
               {upcoming.length === 0 && (
-                <p className="text-center text-slate-400 text-sm py-12">Sin eventos próximos</p>
+                <div className="flex flex-col items-center py-12 gap-2">
+                  <CalendarX size={24} className="text-slate-300" />
+                  <p className="text-slate-400 text-sm">Sin eventos próximos</p>
+                </div>
               )}
               {upcoming.map(event => {
                 const style = CATEGORY_STYLES[event.category] || CATEGORY_STYLES.academico
@@ -213,7 +207,7 @@ export default function Dashboard({ events }) {
                       </span>
                     </div>
                     {event.priority === 'high' && (
-                      <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="Alta prioridad" />
+                      <AlertCircle size={13} className="text-red-500 flex-shrink-0" />
                     )}
                   </div>
                 )
@@ -296,7 +290,7 @@ function DayView({ date, events }) {
       {/* Empty */}
       {events.length === 0 && (
         <div className="bg-white rounded-2xl border border-slate-100 py-12 flex flex-col items-center gap-2 text-slate-400">
-          <span className="text-3xl">✓</span>
+          <CalendarX size={28} className="text-slate-300" />
           <p className="font-medium text-slate-500 text-sm">Sin eventos para este día</p>
         </div>
       )}
@@ -324,7 +318,7 @@ function WeekView({ focusDate, events, onOpenModal, onDayClick }) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
       <div className="overflow-x-auto">
         <div className="grid grid-cols-7 min-w-[560px]">
           {days.map((day, i) => {
@@ -332,38 +326,37 @@ function WeekView({ focusDate, events, onOpenModal, onDayClick }) {
             const today = isToday(day)
             const past = isPast(day) && !today
             return (
-              <div key={i} className={`border-r border-slate-100 last:border-r-0 min-h-[220px] flex flex-col ${
-                today ? 'bg-green-50/60' : past ? 'bg-slate-50/70' : 'bg-white'
+              <div key={i} className={`border-r border-slate-100 last:border-r-0 min-h-[240px] flex flex-col ${
+                today ? 'bg-green-50' : past ? 'bg-slate-50/70' : 'bg-white'
               }`}>
                 <button
                   onClick={() => onDayClick(day)}
-                  className={`p-2.5 pb-2 border-b text-left hover:opacity-75 transition-opacity ${today ? 'border-green-200' : 'border-slate-100'}`}
+                  className={`px-2.5 pt-3 pb-2.5 border-b text-left hover:opacity-80 transition-opacity ${today ? 'border-green-200 bg-green-700' : 'border-slate-100'}`}
                 >
-                  <p className={`text-[10px] font-bold uppercase tracking-wider ${today ? 'text-green-600' : past ? 'text-slate-300' : 'text-slate-400'}`}>
+                  <p className={`text-[10px] font-bold uppercase tracking-widest ${today ? 'text-green-200' : past ? 'text-slate-300' : 'text-slate-400'}`}>
                     {DAY_LABELS[i]}
                   </p>
-                  <div className={`mt-1 w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold ${
-                    today ? 'bg-green-700 text-white' : past ? 'text-slate-300' : 'text-slate-700'
+                  <p className={`mt-1 text-xl font-bold leading-none ${
+                    today ? 'text-white' : past ? 'text-slate-300' : 'text-slate-800'
                   }`}>
                     {format(day, 'd')}
-                  </div>
+                  </p>
                 </button>
-                <div className="p-1.5 flex flex-col gap-1 flex-1">
+                <div className="p-1.5 flex flex-col gap-1 flex-1 pt-2">
                   {dayEvts.map(event => {
                     const style = CATEGORY_STYLES[event.category] || CATEGORY_STYLES.academico
                     return (
                       <button
                         key={event.id}
                         onClick={() => onOpenModal(event)}
-                        className={`w-full text-left px-1.5 py-1 rounded-lg border-l-[3px] ${style.light} hover:opacity-75 transition-opacity`}
-                        style={{ borderLeftColor: style.accent }}
+                        className={`w-full text-left px-2 py-1.5 rounded-lg ${style.light} hover:opacity-80 transition-opacity`}
                       >
-                        <p className={`text-[10px] font-semibold leading-tight ${style.text} ${past ? 'opacity-50' : ''}`}>{event.title}</p>
-                        {event.priority === 'high' && <p className="text-[9px] text-red-500 font-medium">● Alta</p>}
+                        <p className={`text-[11px] font-semibold leading-tight ${style.text} ${past ? 'opacity-50' : ''}`}>{event.title}</p>
+                        {event.priority === 'high' && <p className="text-[10px] text-red-500 font-semibold mt-0.5">↑ Alta</p>}
                       </button>
                     )
                   })}
-                  {dayEvts.length === 0 && <p className="text-[10px] text-slate-200 text-center mt-3">—</p>}
+                  {dayEvts.length === 0 && <p className="text-xs text-slate-300 text-center mt-4">—</p>}
                 </div>
               </div>
             )
@@ -381,7 +374,7 @@ function MonthView({ focusDate, events, onDayClick }) {
   const cells = eachDayOfInterval({ start: gridStart, end: gridEnd })
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
       <div className="grid grid-cols-7 border-b border-slate-100">
         {DAY_LABELS.map(d => (
           <div key={d} className="py-2.5 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">{d}</div>
@@ -399,7 +392,7 @@ function MonthView({ focusDate, events, onDayClick }) {
             <button
               key={i}
               onClick={() => onDayClick(day)}
-              className={`min-h-[80px] p-1.5 border-r border-b border-slate-100 last:border-r-0 text-left transition-colors ${
+              className={`min-h-[88px] p-1.5 border-r border-b border-slate-100 last:border-r-0 text-left transition-colors ${
                 today ? 'bg-green-50' : inMonth ? 'bg-white hover:bg-slate-50' : 'bg-slate-50/40 hover:bg-slate-100/60'
               }`}
             >
@@ -412,12 +405,12 @@ function MonthView({ focusDate, events, onDayClick }) {
                 {shown.map(event => {
                   const style = CATEGORY_STYLES[event.category] || CATEGORY_STYLES.academico
                   return (
-                    <div key={event.id} className={`text-[9px] font-semibold px-1 py-0.5 rounded truncate ${style.bg} ${style.text}`}>
+                    <div key={event.id} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded truncate ${style.bg} ${style.text}`}>
                       {event.title}
                     </div>
                   )
                 })}
-                {extra > 0 && <p className="text-[9px] text-slate-400 font-medium px-1">+{extra}</p>}
+                {extra > 0 && <p className="text-[10px] text-slate-400 font-medium px-1">+{extra}</p>}
               </div>
             </button>
           )
@@ -445,7 +438,8 @@ function EventModal({ event, onClose }) {
         </div>
         <div className="px-6 overflow-y-auto flex-1 space-y-3 pb-2">
           <p className="text-sm text-slate-500 flex items-center flex-wrap gap-2">
-            📅 {format(date, "EEEE d 'de' MMMM yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase())}
+            <Calendar size={14} className="text-slate-400 flex-shrink-0" />
+            {format(date, "EEEE d 'de' MMMM yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase())}
             {past && <span className="text-red-500 text-xs font-semibold bg-red-50 px-2 py-0.5 rounded-full">Vencido</span>}
             {isToday(date) && <span className="text-green-700 text-xs font-semibold bg-green-50 px-2 py-0.5 rounded-full">Hoy</span>}
           </p>
@@ -454,7 +448,12 @@ function EventModal({ event, onClose }) {
               {renderDescription(event.description)}
             </p>
           )}
-          {event.priority === 'high' && <div className="text-red-600 bg-red-50 rounded-xl p-3 text-sm font-medium">⚠️ Alta prioridad — no olvidar</div>}
+          {event.priority === 'high' && (
+            <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-xl p-3 text-sm font-medium">
+              <AlertCircle size={15} className="flex-shrink-0" />
+              Alta prioridad — no olvidar
+            </div>
+          )}
         </div>
         <div className="px-6 py-4 flex-shrink-0 flex justify-end border-t border-slate-100">
           <button onClick={onClose} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors text-sm font-medium">

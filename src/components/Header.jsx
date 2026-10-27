@@ -23,6 +23,12 @@ export default function Header({ activeView, viewTitles = {}, onMenuToggle, even
         </div>
       </div>
 
+      {eventCount > 0 && (
+        <div className="flex items-center gap-1.5 bg-red-50 border border-red-100 rounded-full px-3 py-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+          <span className="text-xs font-semibold text-red-600">{eventCount} urgente{eventCount > 1 ? 's' : ''}</span>
+        </div>
+      )}
     </header>
   )
 }

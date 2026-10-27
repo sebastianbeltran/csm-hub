@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AlertCircle } from 'lucide-react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import Dashboard from './components/Dashboard'
@@ -57,8 +58,8 @@ export default function App() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-100">
-        <div className="bg-white rounded-2xl border border-red-200 p-8 shadow-sm max-w-sm text-center">
-          <p className="text-2xl mb-3">⚠️</p>
+        <div className="bg-white rounded-2xl border border-red-200 p-8 max-w-sm text-center">
+          <AlertCircle size={28} className="text-red-400 mx-auto mb-3" />
           <p className="text-red-600 font-bold mb-2">Error de conexión</p>
           <p className="text-slate-500 text-sm">{error}</p>
           <button onClick={() => window.location.reload()}
