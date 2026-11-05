@@ -1,4 +1,4 @@
-import { LayoutDashboard, BookOpen, GraduationCap, LogIn, LogOut, ShieldCheck } from 'lucide-react'
+import { LayoutDashboard, BookOpen, GraduationCap, Link2, LogIn, LogOut, ShieldCheck } from 'lucide-react'
 
 const ROLE_LABELS = {
   admin:     { label: 'Administrador', cls: 'bg-green-900 text-green-300'  },
@@ -10,6 +10,7 @@ const NAV = [
   { id: 'dashboard', label: 'Dashboard',         icon: LayoutDashboard },
   { id: 'plans',     label: 'Plan Semanal',       icon: BookOpen        },
   { id: 'counselor', label: 'College Counseling', icon: GraduationCap   },
+  { id: 'enlaces',   label: 'Enlaces de interés', icon: Link2           },
 ]
 
 export default function Sidebar({ activeView, onNavigate, isOpen, onClose, role, fullName, onLogin, onLogout }) {

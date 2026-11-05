@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, missingConfig } from '../lib/supabase'
+import seedLinks from '../data/enlaces.json'
+
+// Los enlaces se guardan como una lista en vigilancias_config (id = 'enlaces').
+// Mientras no exista ese registro, se muestran los de src/data/enlaces.json.
+const LINKS_ROW_ID = 'enlaces'
 
 const normalizeCounseling = (s) => ({
   ...s,
@@ -33,7 +38,8 @@ export function useStore() {
   const [plans,              setPlans]              = useState([])
   const [subjects,           setSubjects]           = useState([])
   const [counselingSessions, setCounselingSessions] = useState([])
-  const [loading,            setLoading]            = useState(true)
+  const [links,              setLinks]              = useState(seedLinks)
+  const [loading,           setLoading]            = useState(true)
   const [error,              setError]              = useState(null)
 
   const loadAll = useCallback(async () => {
@@ -45,11 +51,12 @@ export function useStore() {
     setLoading(true)
     setError(null)
     try {
-      const [evtsRes, plnsRes, subsRes, counselRes] = await Promise.all([
+      const [evtsRes, plnsRes, subsRes, counselRes, linksRes] = await Promise.all([
         supabase.from('events').select('*').order('date', { ascending: true }),
         supabase.from('plans').select('*'),
         supabase.from('subjects').select('*').order('grade').order('created_at'),
         supabase.from('counseling_sessions').select('*').order('session_date').order('session_time'),
+        supabase.from('vigilancias_config').select('data').eq('id', LINKS_ROW_ID).maybeSingle(),
       ])
       if (evtsRes.error)   throw evtsRes.error
       if (plnsRes.error)   throw plnsRes.error
@@ -58,6 +65,7 @@ export function useStore() {
       setPlans((plnsRes.data ?? []).map(normalizePlan))
       setSubjects(subsRes.data ?? [])
       if (!counselRes.error) setCounselingSessions((counselRes.data ?? []).map(normalizeCounseling))
+      if (!linksRes.error && Array.isArray(linksRes.data?.data)) setLinks(linksRes.data.data)
     } catch (err) {
       setError(err.message ?? 'Error al conectar con la base de datos')
     } finally {
@@ -143,8 +151,18 @@ export function useStore() {
     return !error
   }
 
+  // Guarda la lista completa de enlaces (agregar, editar, borrar y reordenar pasan por aquí)
+  const saveLinks = async (next) => {
+    const { error } = await supabase
+      .from('vigilancias_config')
+      .upsert({ id: LINKS_ROW_ID, data: next, updated_at: new Date().toISOString() })
+    if (!error) setLinks(next)
+    return !error
+  }
+
   return {
-    events, plans, subjects, counselingSessions, loading, error,
+    events, plans, subjects, counselingSessions, links, loading, error,
+    saveLinks,
     addEvent, updateEvent, deleteEvent,
     savePlan,
     addSubject, deleteSubject,

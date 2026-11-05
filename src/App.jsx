@@ -6,6 +6,7 @@ import Dashboard from './components/Dashboard'
 import LessonPlan from './components/LessonPlan'
 import AdminPanel from './components/AdminPanel'
 import CollegeCounselor from './components/CollegeCounselor'
+import Enlaces from './components/Enlaces'
 import Login from './components/Login'
 import { useStore } from './hooks/useStore'
 import { useAuth } from './hooks/useAuth'
@@ -15,6 +16,7 @@ const VIEW_TITLES = {
   dashboard: 'Dashboard',
   plans:     'Plan Semanal',
   counselor: 'College Counseling',
+  enlaces:   'Enlaces de interés',
   admin:     'Panel de Administración',
 }
 
@@ -25,7 +27,8 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showLogin,   setShowLogin]   = useState(false)
 
-  const { events, plans, subjects, counselingSessions, loading, error,
+  const { events, plans, subjects, counselingSessions, links, loading, error,
+    saveLinks,
     addEvent, updateEvent, deleteEvent,
     savePlan,
     addSubject, deleteSubject,
@@ -84,6 +87,7 @@ export default function App() {
               onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent}
               onAddSubject={addSubject} onDeleteSubject={deleteSubject}
               onSaveVigilancias={saveVigilancias} onLoadVigilancias={loadVigilancias}
+              links={links} onSaveLinks={saveLinks}
               role={role}
               onRequestLogin={() => setShowLogin(true)}
             />
@@ -120,6 +124,7 @@ export default function App() {
               onUpdateAttendance={updateCounselingAttendance}
             />
           )}
+          {activeView === 'enlaces'   && <Enlaces links={links} />}
         </main>
       </div>
     </div>

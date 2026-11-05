@@ -1,9 +1,11 @@
 import { useState, useRef, useCallback } from 'react'
-import { Plus, Trash2, Calendar, BookOpen, Pencil, X, Eye, Upload, CheckCircle, AlertCircle, LogIn, ShieldAlert } from 'lucide-react'
+import { Plus, Trash2, Calendar, BookOpen, Pencil, X, Eye, Upload, CheckCircle, AlertCircle, LogIn, ShieldAlert, Link2, ArrowUp, ArrowDown, ExternalLink } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { CATEGORY_STYLES } from '../data/constants'
 import { parseVigilanciaExcel } from '../lib/parseVigilancias'
+import { hostOf } from '../lib/links'
+import seedLinks from '../data/enlaces.json'
 
 const GRADES = ['9', '10', '11']
 const PRIORITIES = [
@@ -13,7 +15,7 @@ const PRIORITIES = [
 ]
 const emptyEvent = { title: '', description: '', date: '', category: 'academico', priority: 'medium' }
 
-export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, onSaveVigilancias, onLoadVigilancias, role, onRequestLogin }) {
+export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, role, onRequestLogin }) {
   if (!role) return <LoginRequired onRequestLogin={onRequestLogin} />
   if (role !== 'admin') return <AccessDenied />
 
@@ -23,6 +25,7 @@ export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent
       onAddEvent={onAddEvent} onUpdateEvent={onUpdateEvent} onDeleteEvent={onDeleteEvent}
       onAddSubject={onAddSubject} onDeleteSubject={onDeleteSubject}
       onSaveVigilancias={onSaveVigilancias} onLoadVigilancias={onLoadVigilancias}
+      links={links} onSaveLinks={onSaveLinks}
     />
   )
 }
@@ -61,20 +64,22 @@ function AccessDenied() {
 }
 
 /* ─── Admin Content ──────────────────────────────────── */
-function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, onSaveVigilancias, onLoadVigilancias }) {
+function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks }) {
   const [tab, setTab] = useState('events')
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto">
-      <div className="flex gap-2 bg-white border border-slate-200 rounded-2xl p-1.5 w-fit">
+      <div className="flex gap-2 bg-white border border-slate-200 rounded-2xl p-1.5 w-fit max-w-full overflow-x-auto">
         <TabBtn active={tab === 'events'}      onClick={() => setTab('events')}      icon={<Calendar size={14} />} label="Calendario"  />
         <TabBtn active={tab === 'subjects'}    onClick={() => setTab('subjects')}    icon={<BookOpen size={14} />} label="Materias"    />
         <TabBtn active={tab === 'vigilancias'} onClick={() => setTab('vigilancias')} icon={<Eye size={14} />}      label="Vigilancias" />
+        <TabBtn active={tab === 'enlaces'}     onClick={() => setTab('enlaces')}     icon={<Link2 size={14} />}    label="Enlaces"     />
       </div>
 
       {tab === 'events'      && <EventsTab events={events} onAdd={onAddEvent} onUpdate={onUpdateEvent} onDelete={onDeleteEvent} />}
       {tab === 'subjects'    && <SubjectsTab subjects={subjects} onAdd={onAddSubject} onDelete={onDeleteSubject} />}
       {tab === 'vigilancias' && <ViglanciasTab onSave={onSaveVigilancias} onLoad={onLoadVigilancias} />}
+      {tab === 'enlaces'     && <EnlacesTab links={links} onSave={onSaveLinks} />}
     </div>
   )
 }
@@ -345,7 +350,7 @@ function ViglanciasTab({ onSave, onLoad }) {
         <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-600 space-y-1">
           <p>Sube el Excel de vigilancias para actualizar los datos del dashboard.</p>
           <p className="text-xs text-slate-400">
-            El archivo debe tener la hoja <strong>" VIGILANCIAS HIGH 26-27"</strong> con el mismo formato que el original.
+            Debe incluir la tabla de vigilancias (DESCANSO / ALMUERZO) y las tablas de carros 🚗 y rutas 🚌, en la misma hoja o en hojas separadas.
           </p>
           {lastUpdated && (
             <p className="text-xs text-green-700 mt-2 font-medium">
@@ -416,6 +421,149 @@ function ViglanciasTab({ onSave, onLoad }) {
         )}
       </div>
     </Card>
+  )
+}
+
+/* ─── Enlaces Tab ────────────────────────────────────── */
+const normalizeUrl = (u) => {
+  const t = u.trim()
+  return /^[a-z][a-z0-9+.-]*:/i.test(t) ? t : `https://${t}`
+}
+const isValidUrl = (u) => { try { return /^https?:$/.test(new URL(u).protocol) } catch { return false } }
+const newId = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`)
+
+function EnlacesTab({ links, onSave }) {
+  const [form, setForm]           = useState({ title: '', url: '' })
+  const [editingId, setEditingId] = useState(null)
+  const [status, setStatus]       = useState(null) // null | 'saving' | 'ok' | { error }
+
+  const savedUrls = new Set(links.map(l => l.url))
+  const pendingSeed = seedLinks.filter(l => !savedUrls.has(l.url))
+
+  const persist = async (next, okMsg) => {
+    setStatus('saving')
+    const ok = await onSave(next)
+    setStatus(ok ? { ok: okMsg } : { error: 'No se pudo guardar en Supabase. Revisa tu sesión e inténtalo de nuevo.' })
+    if (ok) setTimeout(() => setStatus(null), 2500)
+    return ok
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    const title = form.title.trim()
+    const url = normalizeUrl(form.url)
+    if (!title || !form.url.trim()) return
+    if (!isValidUrl(url)) { setStatus({ error: 'El enlace no parece válido. Ejemplo: https://forms.gle/...' }); return }
+    const next = editingId
+      ? links.map(l => l.id === editingId ? { ...l, title, url } : l)
+      : [...links, { id: newId(), title, url }]
+    if (await persist(next, editingId ? 'Enlace actualizado' : 'Enlace agregado')) {
+      setForm({ title: '', url: '' })
+      setEditingId(null)
+    }
+  }
+
+  const startEdit = (l) => { setEditingId(l.id); setForm({ title: l.title, url: l.url }); setStatus(null) }
+  const cancelEdit = () => { setEditingId(null); setForm({ title: '', url: '' }) }
+
+  const remove = (l) => {
+    if (editingId === l.id) cancelEdit()
+    persist(links.filter(x => x.id !== l.id), 'Enlace eliminado')
+  }
+
+  const move = (idx, dir) => {
+    const j = idx + dir
+    if (j < 0 || j >= links.length) return
+    const next = [...links]
+    ;[next[idx], next[j]] = [next[j], next[idx]]
+    persist(next, 'Orden actualizado')
+  }
+
+  const busy = status === 'saving'
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+      <div className="lg:col-span-2">
+        <Card title={editingId ? 'Editar enlace' : 'Nuevo enlace'} icon={<Link2 size={15} className="text-green-600" />}>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Field label="Título">
+              <input className={inp} value={form.title} placeholder="Ej. Reporte de alimentación"
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+            </Field>
+            <Field label="Enlace">
+              <input className={inp} value={form.url} placeholder="https://..." inputMode="url"
+                onChange={e => setForm(f => ({ ...f, url: e.target.value }))} />
+            </Field>
+            <div className="flex gap-2">
+              {editingId && (
+                <button type="button" onClick={cancelEdit}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-500 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors">
+                  <X size={15} /> Cancelar
+                </button>
+              )}
+              <button type="submit" disabled={busy || !form.title.trim() || !form.url.trim()}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-700 text-white rounded-xl font-bold text-sm hover:bg-green-800 transition-colors disabled:opacity-50">
+                {editingId ? <><CheckCircle size={15} /> Guardar cambios</> : <><Plus size={15} /> Agregar enlace</>}
+              </button>
+            </div>
+
+            {status?.error && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
+                <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-600">{status.error}</p>
+              </div>
+            )}
+            {status?.ok && (
+              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl p-3">
+                <CheckCircle size={16} className="text-green-600" />
+                <p className="text-sm text-green-700 font-medium">{status.ok}</p>
+              </div>
+            )}
+          </form>
+        </Card>
+      </div>
+
+      <div className="lg:col-span-3 space-y-3">
+        {pendingSeed.length > 0 && (
+          <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <p className="text-sm text-amber-700">
+              Hay {pendingSeed.length} enlace{pendingSeed.length > 1 ? 's' : ''} nuevo{pendingSeed.length > 1 ? 's' : ''} preparado{pendingSeed.length > 1 ? 's' : ''} desde el código.
+            </p>
+            <button onClick={() => persist([...links, ...pendingSeed], 'Enlaces importados')} disabled={busy}
+              className="flex-shrink-0 px-3 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold hover:bg-amber-700 transition-colors disabled:opacity-50">
+              Importar
+            </button>
+          </div>
+        )}
+
+        <Card title={`Enlaces publicados (${links.length})`} icon={<ExternalLink size={15} className="text-green-600" />}>
+          {links.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-6">Aún no hay enlaces.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 -my-2">
+              {links.map((l, i) => (
+                <li key={l.id} className={`flex items-center gap-2 py-2.5 ${editingId === l.id ? 'bg-green-50 -mx-2 px-2 rounded-xl' : ''}`}>
+                  <div className="flex flex-col">
+                    <button onClick={() => move(i, -1)} disabled={busy || i === 0} title="Subir"
+                      className="p-0.5 text-slate-300 hover:text-slate-600 disabled:opacity-30 disabled:hover:text-slate-300"><ArrowUp size={13} /></button>
+                    <button onClick={() => move(i, 1)} disabled={busy || i === links.length - 1} title="Bajar"
+                      className="p-0.5 text-slate-300 hover:text-slate-600 disabled:opacity-30 disabled:hover:text-slate-300"><ArrowDown size={13} /></button>
+                  </div>
+                  <a href={l.url} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 group">
+                    <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-green-700">{l.title}</p>
+                    <p className="text-xs text-slate-400 truncate">{hostOf(l.url)}</p>
+                  </a>
+                  <button onClick={() => startEdit(l)} disabled={busy} title="Editar"
+                    className="p-2 text-slate-400 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"><Pencil size={14} /></button>
+                  <button onClick={() => remove(l)} disabled={busy} title="Eliminar"
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14} /></button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </div>
   )
 }
 

@@ -26,7 +26,7 @@ function SpotRow({ label, name }) {
     <div className="flex items-baseline justify-between gap-2 py-1.5 border-b border-slate-100/80 last:border-0">
       <span className="text-xs text-slate-500 flex-shrink-0 truncate max-w-[45%]">{label}</span>
       <span className={`text-xs font-semibold text-right ${name ? 'text-slate-800' : 'text-slate-300'}`}>
-        {name || '—'}
+        {name || ''}
       </span>
     </div>
   )
@@ -151,7 +151,7 @@ export default function ViglanciasHoy() {
                         }`}>
                           {name === 'SEMANA DE RECESO' ? 'Receso'
                            : name === 'FESTIVO' ? 'Festivo'
-                           : name || '—'}
+                           : name || ''}
                         </span>
                       </div>
                     )
@@ -188,7 +188,7 @@ export default function ViglanciasHoy() {
                         }`}>
                           {name === 'SEMANA DE RECESO' ? 'Receso'
                            : name === 'FESTIVO' ? 'Festivo'
-                           : name || '—'}
+                           : name || ''}
                         </span>
                       </div>
                     )
