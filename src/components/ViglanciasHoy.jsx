@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { format } from 'date-fns'
+import { format, addDays, isWeekend, isSameDay } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Eye, Car, Bus, Coffee, Utensils } from 'lucide-react'
+import { Eye, Car, Bus, Coffee, Utensils, ChevronLeft, ChevronRight } from 'lucide-react'
 import staticData from '../data/vigilancias.json'
 import { supabase, missingConfig } from '../lib/supabase'
 
@@ -32,9 +32,18 @@ function SpotRow({ label, name }) {
   )
 }
 
+// Avanza o retrocede al siguiente día hábil (salta sábados y domingos)
+function shiftWeekday(date, dir) {
+  let d = addDays(date, dir)
+  while (isWeekend(d)) d = addDays(d, dir)
+  return d
+}
+
 export default function ViglanciasHoy() {
   const viglanciasData = useViglanciasData()
-  const today = new Date()
+  const [selected, setSelected] = useState(() => new Date())
+  const isToday = isSameDay(selected, new Date())
+  const today = selected
   const dow = today.getDay()
   const dayKey = DAY_KEYS[dow]
   const isWeekday = dayKey !== null
@@ -53,7 +62,9 @@ export default function ViglanciasHoy() {
   const carrosHoy = carrosWeek && dayKey ? carrosWeek[dayKey] : null
   const rutasHoy = rutasWeek && dayKey ? rutasWeek[dayKey] : null
 
-  const isReceso = carrosHoy === 'SEMANA DE RECESO' || rutasHoy === 'SEMANA DE RECESO'
+  // "SEMANA DE RECESO" viene solo en la columna del lunes, pero aplica a toda la semana
+  const weekIsReceso = (w) => !!w && Object.values(w).includes('SEMANA DE RECESO')
+  const isReceso = weekIsReceso(carrosWeek) || weekIsReceso(rutasWeek)
   const isFestivo = carrosHoy === 'FESTIVO' || rutasHoy === 'FESTIVO'
 
   return (
@@ -61,29 +72,50 @@ export default function ViglanciasHoy() {
       {/* Header */}
       <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
         <Eye size={15} className="text-green-700 flex-shrink-0" />
-        <div>
+        <div className="min-w-0">
           <h3 className="font-semibold text-slate-800 text-sm">Vigilancias del día</h3>
-          <p className="text-xs text-slate-400 mt-0.5">{dateLabel}</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {dateLabel}
+            {!isToday && <span className="ml-1.5 text-green-700 font-medium">· no es hoy</span>}
+          </p>
         </div>
-        {!isWeekday && (
-          <span className="ml-auto text-xs bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full font-medium">
-            Fin de semana
-          </span>
-        )}
-        {isReceso && (
-          <span className="ml-auto text-xs bg-amber-100 text-amber-600 px-2.5 py-1 rounded-full font-medium">
-            Semana de receso
-          </span>
-        )}
-        {isFestivo && (
-          <span className="ml-auto text-xs bg-blue-100 text-blue-600 px-2.5 py-1 rounded-full font-medium">
-            Festivo
-          </span>
-        )}
+        <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
+          {!isWeekday && (
+            <span className="text-xs bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full font-medium">
+              Fin de semana
+            </span>
+          )}
+          {isReceso && (
+            <span className="text-xs bg-amber-100 text-amber-600 px-2.5 py-1 rounded-full font-medium">
+              Semana de receso
+            </span>
+          )}
+          {isFestivo && !isReceso && (
+            <span className="text-xs bg-blue-100 text-blue-600 px-2.5 py-1 rounded-full font-medium">
+              Festivo
+            </span>
+          )}
+          <div className="flex items-center gap-1">
+            {!isToday && (
+              <button onClick={() => setSelected(new Date())}
+                className="px-2.5 py-1 text-xs font-semibold text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors">
+                Hoy
+              </button>
+            )}
+            <button onClick={() => setSelected(d => shiftWeekday(d, -1))} title="Día anterior" aria-label="Día anterior"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors">
+              <ChevronLeft size={14} />
+            </button>
+            <button onClick={() => setSelected(d => shiftWeekday(d, 1))} title="Día siguiente" aria-label="Día siguiente"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors">
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
       </div>
 
       {!isWeekday && !carrosWeek && !rutasWeek ? (
-        <p className="text-sm text-slate-400 text-center py-8">Sin vigilancias ni acompañamientos hoy</p>
+        <p className="text-sm text-slate-400 text-center py-8">Sin vigilancias ni acompañamientos {isToday ? "hoy" : "este día"}</p>
       ) : (
         <div className="p-4 space-y-4">
 
