@@ -51,7 +51,7 @@ function relDate(dateStr) {
   } catch { return { label: dateStr, chip: 'bg-slate-100 text-slate-500' } }
 }
 
-export default function Dashboard({ events }) {
+export default function Dashboard({ events, showVigilancias = true }) {
   const [view, setView] = useState('week')
   const [focusDate, setFocusDate] = useState(new Date())
   const [modalEvent, setModalEvent] = useState(null)
@@ -217,8 +217,8 @@ export default function Dashboard({ events }) {
         </div>
       </div>
 
-      {/* Vigilancias del día */}
-      <ViglanciasHoy />
+      {/* Vigilancias del día (solo High School) */}
+      {showVigilancias && <ViglanciasHoy />}
 
       {/* Modal */}
       {modalEvent && (

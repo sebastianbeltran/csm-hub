@@ -1,7 +1,9 @@
-import { LayoutDashboard, BookOpen, GraduationCap, Link2, LogIn, LogOut, ShieldCheck } from 'lucide-react'
+import { LayoutDashboard, BookOpen, GraduationCap, Link2, LogIn, LogOut, ShieldCheck, Settings } from 'lucide-react'
 
 const ROLE_LABELS = {
-  admin:     { label: 'Administrador', cls: 'bg-green-900 text-green-300'  },
+  super_admin: { label: 'Super admin',   cls: 'bg-amber-900 text-amber-300'  },
+  admin:       { label: 'Administrador', cls: 'bg-green-900 text-green-300'  },
+  coordinador: { label: 'Coordinador',   cls: 'bg-violet-900 text-violet-300' },
   counselor: { label: 'Counselor',     cls: 'bg-sky-900 text-sky-300'      },
   docente:   { label: 'Docente',       cls: 'bg-slate-700 text-slate-300'  },
 }
@@ -9,11 +11,12 @@ const ROLE_LABELS = {
 const NAV = [
   { id: 'dashboard', label: 'Dashboard',         icon: LayoutDashboard },
   { id: 'plans',     label: 'Plan Semanal',       icon: BookOpen        },
-  { id: 'counselor', label: 'College Counseling', icon: GraduationCap   },
+  { id: 'counselor', label: 'College Counseling', icon: GraduationCap, feature: 'counseling' },
   { id: 'enlaces',   label: 'Enlaces de interés', icon: Link2           },
+  { id: 'admin',     label: 'Administración',     icon: Settings, roles: ['admin', 'super_admin'] },
 ]
 
-export default function Sidebar({ activeView, onNavigate, isOpen, onClose, role, fullName, onLogin, onLogout }) {
+export default function Sidebar({ activeView, onNavigate, isOpen, onClose, role, features = {}, fullName, onLogin, onLogout }) {
   return (
     <>
       {isOpen && (
@@ -39,7 +42,7 @@ export default function Sidebar({ activeView, onNavigate, isOpen, onClose, role,
 
         {/* Nav */}
         <nav className="flex-1 p-4 space-y-1">
-          {NAV.map(({ id, label, icon: Icon }) => {
+          {NAV.filter(item => (!item.roles || item.roles.includes(role)) && (!item.feature || features[item.feature])).map(({ id, label, icon: Icon }) => {
             const active = activeView === id
             return (
               <button

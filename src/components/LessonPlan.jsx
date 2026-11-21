@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { format, addWeeks, startOfWeek, addDays, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Save, Download, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react'
+import { getSchoolGrades, gradeLabel } from '../lib/schoolGrades'
 
-const GRADES = ['9', '10', '11']
 
 const COMP_TRANSVERSALES = [
   { id: 'COM',  label: 'Comunicación' },
@@ -79,7 +79,7 @@ const exportToPDF = (filteredPlans, title, subtitle, subjectsList, groupBySubjec
         <div class="subject-block">
           <div class="subject-header">
             <span class="subject-name">${esc(subLabel)}</span>
-            <span class="subject-grade">${grade}°</span>
+            <span class="subject-grade">${esc(gradeLabel(grade))}</span>
           </div>
           ${sp.map(p => weekBlock(p, false)).join('')}
         </div>`
@@ -161,8 +161,11 @@ const exportToPDF = (filteredPlans, title, subtitle, subjectsList, groupBySubjec
   }
 }
 
-export default function LessonPlan({ plans, subjects, onSave }) {
-  const [grade, setGrade]         = useState('9')
+export default function LessonPlan({ plans, subjects, onSave, schoolSlug }) {
+  const grades = getSchoolGrades(schoolSlug)
+  const [selectedGrade, setGrade] = useState(grades[0])
+  // Si cambia la escuela y el grado elegido ya no existe, usar el primero de la escuela
+  const grade = grades.includes(selectedGrade) ? selectedGrade : grades[0]
   const [subjectId, setSubjectId] = useState('')
   const [weekStart, setWeekStart] = useState(getMonday(new Date()))
   const [form, setForm]           = useState(emptyForm)
@@ -208,7 +211,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
     const subLabel = subjects.find(s => s.id === subjectId)?.label || subjectId
     exportToPDF(
       plans.filter(p => p.subjectId === subjectId && (p.week_start || p.weekStart) === weekStart),
-      subLabel + ' · ' + grade + '°',
+      subLabel + ' · ' + gradeLabel(grade),
       'Semana del ' + weekLabel(weekStart),
       subjects, false
     )
@@ -217,7 +220,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
     const subLabel = subjects.find(s => s.id === subjectId)?.label || subjectId
     exportToPDF(
       plans.filter(p => p.subjectId === subjectId && p.grade === grade),
-      subLabel + ' · ' + grade + '°',
+      subLabel + ' · ' + gradeLabel(grade),
       'Todas las semanas del período',
       subjects, false
     )
@@ -225,7 +228,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
   const exportGrado = () => {
     exportToPDF(
       plans.filter(p => p.grade === grade),
-      'Grado ' + grade + '° — Plan Semanal Integrado',
+      'Grado ' + gradeLabel(grade) + ' — Plan Semanal Integrado',
       'Todas las materias · Todas las semanas',
       subjects, true
     )
@@ -249,12 +252,12 @@ export default function LessonPlan({ plans, subjects, onSave }) {
         <div>
           <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Grado</label>
           <div className="flex bg-slate-100 rounded-xl p-1 gap-0.5">
-            {GRADES.map(g => (
+            {grades.map(g => (
               <button key={g} onClick={() => setGrade(g)}
                 className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
                   grade === g ? 'bg-white text-green-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                 }`}
-              >{g}°</button>
+              >{gradeLabel(g)}</button>
             ))}
           </div>
         </div>
@@ -313,11 +316,11 @@ export default function LessonPlan({ plans, subjects, onSave }) {
                   <button onClick={() => { exportMateria(); setShowExport(false) }}
                     className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors border-t border-slate-50">
                     <p className="font-semibold text-slate-700">Esta materia · Todas las semanas</p>
-                    <p className="text-xs text-slate-400">{currentSubject?.label} · {grade}°</p>
+                    <p className="text-xs text-slate-400">{currentSubject?.label} · {gradeLabel(grade)}</p>
                   </button>
                   <button onClick={() => { exportGrado(); setShowExport(false) }}
                     className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors border-t border-slate-50">
-                    <p className="font-semibold text-slate-700">Todas las materias · Grado {grade}°</p>
+                    <p className="font-semibold text-slate-700">Todas las materias · Grado {gradeLabel(grade)}</p>
                     <p className="text-xs text-slate-400">Agrupado por materia · todas las semanas</p>
                   </button>
                 </div>
@@ -386,7 +389,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
       {subjectId ? (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
           <div className="bg-gradient-to-r from-green-800 to-green-700 px-6 py-4">
-            <p className="text-white font-bold text-base">{currentSubject?.label} · {grade}°</p>
+            <p className="text-white font-bold text-base">{currentSubject?.label} · {gradeLabel(grade)}</p>
             <p className="text-green-200 text-sm">{weekLabel(weekStart)}{isCurrentWeek ? ' · Semana actual' : ''}</p>
           </div>
           <div className="p-6 space-y-5">
@@ -456,7 +459,7 @@ export default function LessonPlan({ plans, subjects, onSave }) {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-100 py-16 text-center text-slate-400">
-          <p className="font-medium">No hay materias para {grade}°</p>
+          <p className="font-medium">No hay materias para {gradeLabel(grade)}</p>
           <p className="text-sm mt-1">Ve a <strong>Administrar</strong> para agregar materias</p>
         </div>
       )}

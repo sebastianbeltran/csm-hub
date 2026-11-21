@@ -1,6 +1,6 @@
 # CSM Hub Docente — Plan Maestro de Deployment
-**Versión:** 1.2  
-**Última actualización:** 20 noviembre 2026  
+**Versión:** 1.3  
+**Última actualización:** 21 noviembre 2026  
 **Alcance:** 4 escuelas · ~80 docentes · deployment profesional, seguro y sostenible
 
 ---
@@ -53,49 +53,68 @@ Dato semilla: escuela "High School" insertada en tabla `schools`.
 
 ---
 
+## ✅ PROGRESO — SESIÓN 21 NOV 2026 (desde el Mac)
+
+**1. Entorno en el Mac**
+- Se cambió a la rama `develop`.
+- `.env.local` ahora apunta a **staging**. La config anterior (producción) quedó en `.env.backup-produccion.local`
+  (Vite no la lee; solo es respaldo).
+- Hay un commit local en `main` ("agregar enlace Salones y asistencia trimestrales") que **NO se subió** a propósito.
+
+**2. Escuelas en staging**
+- Columna `sort_order` agregada a `schools` y las 4 escuelas creadas:
+  Early Childhood (1), Primary School (2), Middle School (3), High School (4).
+
+**3. Usuario super_admin**
+- Solo se creó `jbeltran2@csm.edu.co` como `super_admin` (school_id = High School).
+  Los demás usuarios de prueba (admin, coordinador, docente) quedan pendientes; por ahora se usa la barra "Ver como".
+
+**4. Código (commit en `develop`)**
+- Barra amarilla **"Ver como"** para el super_admin: cambia de rol (Super admin, Admin, Coordinador, Counselor,
+  Docente) y de escuela. Solo cambia la interfaz; los permisos RLS siguen siendo los reales.
+  Archivos: `src/components/RoleSwitcher.jsx`, `src/hooks/useAuth.js` (`role` efectivo, `realRole`, `schoolId`).
+- `super_admin` reconocido en AdminPanel y College Counseling. Ítem "Administración" en el sidebar para admin/super_admin.
+- **Módulos por escuela** (`src/lib/schoolFeatures.js`): Vigilancias y College Counseling solo en High School.
+- **Grados por escuela** (`src/lib/schoolGrades.js`) en Plan Semanal y Admin → Materias.
+- Se probó un color de fondo por escuela y se descartó (no gustó).
+
+---
+
 ## 🔜 PRÓXIMA SESIÓN — Por dónde arrancar
 
-**Paso inmediato:** Crear los 4 usuarios de prueba en Supabase staging para poder
-desarrollar y testear sin Google OAuth.
+**Prioridad: que cada escuela tenga sus propios datos.** Hoy la interfaz ya cambia por escuela, pero los datos no:
 
-Ir a Supabase staging → Authentication → Users → Add user → Create new user:
-
-| Email | Contraseña sugerida | Rol a asignar después |
-|---|---|---|
-| `superadmin@test.com` | `Test1234!` | `super_admin` |
-| `admin@test.com` | `Test1234!` | `admin` |
-| `coordinador@test.com` | `Test1234!` | `coordinador` |
-| `docente@test.com` | `Test1234!` | `docente` |
-
-Después de crearlos, actualizar sus perfiles en la tabla `profiles`:
-```sql
--- Reemplazar los UUIDs con los IDs reales que asignó Supabase al crear los usuarios
--- Primero obtener los IDs: Authentication → Users → copiar el UUID de cada uno
-
--- Obtener el school_id de High School:
-SELECT id FROM schools WHERE slug = 'high_school';
-
--- Luego actualizar los perfiles (reemplazar los UUIDs):
-UPDATE profiles SET role = 'super_admin', active = true, school_id = '<SCHOOL_ID>' WHERE email = 'superadmin@test.com';
-UPDATE profiles SET role = 'admin',       active = true, school_id = '<SCHOOL_ID>' WHERE email = 'admin@test.com';
-UPDATE profiles SET role = 'coordinador', active = true, school_id = '<SCHOOL_ID>' WHERE email = 'coordinador@test.com';
-UPDATE profiles SET role = 'docente',     active = true, school_id = '<SCHOOL_ID>' WHERE email = 'docente@test.com';
+```
+[ ] A. Lesson plan por escuela: subjects y plans filtrados por school_id (tareas 3.2, 3.3).
+       - addSubject() debe guardar school_id (hoy una materia creada en staging no aparece en el Plan Semanal).
+       - savePlan() debe guardar teacher_id y school_id.
+       - Para el super_admin, usar el school_id elegido en "Ver como" (ojo: las políticas RLS de subjects
+         filtran por get_my_school_id(); habrá que permitir al super_admin ver/escribir en cualquier escuela).
+[ ] B. Enlaces de interés por escuela (DECIDIDO 21 nov): cada escuela tiene su propia lista.
+       - Hoy están en vigilancias_config id='enlaces' (lista única). Pasar a 'enlaces_<slug>' (ver 3.8)
+         o a una tabla propia con school_id.
+       - La semilla src/data/enlaces.json corresponde a High School.
+[ ] C. College Counseling: addCounselingSession() debe guardar school_id (si no, RLS rechaza el insert).
+[ ] D. Vigilancias: guardar/leer con id 'main_high_school' (tarea 3.8).
 ```
 
-**Después de los usuarios de prueba, el orden de desarrollo es:**
+**Después, el orden de desarrollo del plan original sigue igual:**
 
 ```
 [ ] 1. Instalar React Router y refactorizar App.jsx
 [ ] 2. Crear LoginPage.jsx (email + contraseña por ahora, Google después)
 [ ] 3. Crear AuthGuard.jsx y RoleGuard.jsx
 [ ] 4. Crear PendingActivationPage.jsx
-[ ] 5. Actualizar useAuth.js
+[~] 5. Actualizar useAuth.js  (ya tiene vista previa de rol/escuela para super_admin)
 [ ] 6. Eliminar el modal Login.jsx actual
 [ ] 7. Actualizar Sidebar con avatar y nombre del usuario
-[ ] 8. Actualizar useStore.js con queries filtradas por school_id y teacher_id
-[ ] 9. Actualizar savePlan() para incluir teacher_id y school_id
+[ ] 8. Actualizar useStore.js con queries filtradas por school_id y teacher_id  (= A, B, C)
+[ ] 9. Actualizar savePlan() para incluir teacher_id y school_id  (= A)
 [ ] 10. Actualizar LessonPlan.jsx para mostrar solo materias del docente
 ```
+
+**Usuarios de prueba pendientes** (crear cuando se necesiten, en staging → Authentication → Users → Add user,
+con "Auto Confirm User", y luego asignar rol en `profiles`): `admin@test.com`, `coordinador@test.com`, `docente@test.com`.
 
 ---
 
@@ -140,6 +159,12 @@ UPDATE profiles SET role = 'docente',     active = true, school_id = '<SCHOOL_ID
 | Planes sin dueño | Los 386 planes existentes en producción se migrarán asignándolos a `jbeltran2@csm.edu.co` como datos históricos |
 | IDs de eventos | Cambiar de `Date.now()` a UUID generado por Supabase |
 | Router | Instalar `react-router-dom` antes de empezar las vistas nuevas |
+| Escuelas | Early Childhood, Primary School, Middle School, High School (tabla `schools`, ordenadas por `sort_order`) |
+| Grados por escuela | Early Childhood: Prekínder, Kínder, Transición · Primary: 1°–5° · Middle: 6°–8° · High: 9°–11° (`src/lib/schoolGrades.js`). En BD se guardan como `prekinder`, `kinder`, `transicion`, `1`…`11` |
+| Enlaces de interés | **Por escuela**: cada escuela tiene su propia lista (pendiente de implementar) |
+| Lesson plan | **Por escuela**: materias y planes separados por `school_id` (pendiente de implementar) |
+| Módulos por escuela | Vigilancias y College Counseling existen **solo en High School** (`src/lib/schoolFeatures.js`) |
+| Vista previa de roles | El super_admin tiene una barra "Ver como" para cambiar de rol y escuela. Solo cambia la interfaz, no los permisos RLS |
 | App en producción | Se mantiene en línea y funcional durante todo el desarrollo. Solo se toca cuando una fase completa esté probada en staging. |
 
 ---
@@ -211,7 +236,7 @@ Propuesta para el sistema final:
 
 ### 0.3 — Definir qué datos son por escuela vs globales
 Propuesta:
-- **Por escuela:** subjects, plans, vigilancias, counseling_sessions, perfiles de docentes
+- **Por escuela:** subjects, plans, vigilancias, counseling_sessions, perfiles de docentes, **enlaces de interés** ✅ (decidido 21 nov)
 - **Globales o por escuela (a decidir):** events (¿el calendario es del colegio completo o por sección?), enlaces de interés
 - **Siempre globales:** schools (la lista de escuelas en sí)
 

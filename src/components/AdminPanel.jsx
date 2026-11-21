@@ -5,9 +5,9 @@ import { es } from 'date-fns/locale'
 import { CATEGORY_STYLES } from '../data/constants'
 import { parseVigilanciaExcel } from '../lib/parseVigilancias'
 import { hostOf } from '../lib/links'
+import { getSchoolGrades, gradeLabel } from '../lib/schoolGrades'
 import seedLinks from '../data/enlaces.json'
 
-const GRADES = ['9', '10', '11']
 const PRIORITIES = [
   { value: 'high',   label: 'Alta'  },
   { value: 'medium', label: 'Media' },
@@ -15,9 +15,9 @@ const PRIORITIES = [
 ]
 const emptyEvent = { title: '', description: '', date: '', category: 'academico', priority: 'medium' }
 
-export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, role, onRequestLogin }) {
+export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias = true, schoolSlug, role, onRequestLogin }) {
   if (!role) return <LoginRequired onRequestLogin={onRequestLogin} />
-  if (role !== 'admin') return <AccessDenied />
+  if (role !== 'admin' && role !== 'super_admin') return <AccessDenied />
 
   return (
     <AdminContent
@@ -26,6 +26,8 @@ export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent
       onAddSubject={onAddSubject} onDeleteSubject={onDeleteSubject}
       onSaveVigilancias={onSaveVigilancias} onLoadVigilancias={onLoadVigilancias}
       links={links} onSaveLinks={onSaveLinks}
+      showVigilancias={showVigilancias}
+      schoolSlug={schoolSlug}
     />
   )
 }
@@ -64,20 +66,22 @@ function AccessDenied() {
 }
 
 /* ─── Admin Content ──────────────────────────────────── */
-function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks }) {
-  const [tab, setTab] = useState('events')
+function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias, schoolSlug }) {
+  const [selectedTab, setTab] = useState('events')
+  // Si la escuela cambia a una sin vigilancias, no dejar la pestaña vacía
+  const tab = selectedTab === 'vigilancias' && !showVigilancias ? 'events' : selectedTab
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto">
       <div className="flex gap-2 bg-white border border-slate-200 rounded-2xl p-1.5 w-fit max-w-full overflow-x-auto">
         <TabBtn active={tab === 'events'}      onClick={() => setTab('events')}      icon={<Calendar size={14} />} label="Calendario"  />
         <TabBtn active={tab === 'subjects'}    onClick={() => setTab('subjects')}    icon={<BookOpen size={14} />} label="Materias"    />
-        <TabBtn active={tab === 'vigilancias'} onClick={() => setTab('vigilancias')} icon={<Eye size={14} />}      label="Vigilancias" />
+        {showVigilancias && <TabBtn active={tab === 'vigilancias'} onClick={() => setTab('vigilancias')} icon={<Eye size={14} />}      label="Vigilancias" />}
         <TabBtn active={tab === 'enlaces'}     onClick={() => setTab('enlaces')}     icon={<Link2 size={14} />}    label="Enlaces"     />
       </div>
 
       {tab === 'events'      && <EventsTab events={events} onAdd={onAddEvent} onUpdate={onUpdateEvent} onDelete={onDeleteEvent} />}
-      {tab === 'subjects'    && <SubjectsTab subjects={subjects} onAdd={onAddSubject} onDelete={onDeleteSubject} />}
+      {tab === 'subjects'    && <SubjectsTab schoolSlug={schoolSlug} subjects={subjects} onAdd={onAddSubject} onDelete={onDeleteSubject} />}
       {tab === 'vigilancias' && <ViglanciasTab onSave={onSaveVigilancias} onLoad={onLoadVigilancias} />}
       {tab === 'enlaces'     && <EnlacesTab links={links} onSave={onSaveLinks} />}
     </div>
@@ -224,8 +228,10 @@ function EventsTab({ events, onAdd, onUpdate, onDelete }) {
 }
 
 /* ─── Subjects Tab ───────────────────────────────────── */
-function SubjectsTab({ subjects, onAdd, onDelete }) {
-  const [grade, setGrade]     = useState('9')
+function SubjectsTab({ subjects, onAdd, onDelete, schoolSlug }) {
+  const grades = getSchoolGrades(schoolSlug)
+  const [selectedGrade, setGrade] = useState(grades[0])
+  const grade = grades.includes(selectedGrade) ? selectedGrade : grades[0]
   const [label, setLabel]     = useState('')
   const [success, setSuccess] = useState(false)
 
@@ -247,11 +253,11 @@ function SubjectsTab({ subjects, onAdd, onDelete }) {
           <form onSubmit={handleAdd} className="space-y-4">
             <Field label="Grado">
               <div className="flex bg-slate-100 rounded-xl p-1 gap-0.5">
-                {GRADES.map(g => (
+                {grades.map(g => (
                   <button key={g} type="button" onClick={() => setGrade(g)}
                     className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
                       grade === g ? 'bg-white text-green-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-                    }`}>{g}°</button>
+                    }`}>{gradeLabel(g)}</button>
                 ))}
               </div>
             </Field>
@@ -270,16 +276,16 @@ function SubjectsTab({ subjects, onAdd, onDelete }) {
       <div className="lg:col-span-3">
         <Card title="Materias por grado">
           <div className="flex gap-2 mb-4">
-            {GRADES.map(g => (
+            {grades.map(g => (
               <button key={g} onClick={() => setGrade(g)}
                 className={`px-4 py-1.5 rounded-xl text-sm font-bold border-2 transition-all ${
                   grade === g ? 'bg-green-700 border-green-700 text-white' : 'border-slate-200 text-slate-500 hover:border-green-300'
-                }`}>{g}°</button>
+                }`}>{gradeLabel(g)}</button>
             ))}
             <span className="ml-auto text-xs text-slate-400 self-center">{gradeSubjects.length} materias</span>
           </div>
           <div className="space-y-1 max-h-[400px] overflow-y-auto">
-            {gradeSubjects.length === 0 && <p className="text-center text-slate-400 text-sm py-8">Sin materias para {grade}°</p>}
+            {gradeSubjects.length === 0 && <p className="text-center text-slate-400 text-sm py-8">Sin materias para {gradeLabel(grade)}</p>}
             {gradeSubjects.map(s => (
               <div key={s.id} className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors group">
                 <span className="text-sm text-slate-700 font-medium">{s.label}</span>

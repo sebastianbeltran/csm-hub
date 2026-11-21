@@ -12,6 +12,7 @@ CREATE TABLE schools (
   name       TEXT NOT NULL,
   slug       TEXT UNIQUE NOT NULL,
   active     BOOLEAN DEFAULT TRUE,
+  sort_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -368,5 +369,8 @@ CREATE INDEX idx_teacher_subjects_tid   ON teacher_subjects(teacher_id);
 -- ================================================
 -- DATOS SEMILLA — ESCUELA
 -- ================================================
-INSERT INTO schools (name, slug) VALUES
-  ('High School', 'high_school');
+INSERT INTO schools (name, slug, sort_order) VALUES
+  ('Early Childhood', 'early_childhood', 1),
+  ('Primary School',  'primary_school',  2),
+  ('Middle School',   'middle_school',   3),
+  ('High School',     'high_school',     4);

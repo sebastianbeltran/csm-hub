@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AlertCircle } from 'lucide-react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
@@ -8,8 +8,11 @@ import AdminPanel from './components/AdminPanel'
 import CollegeCounselor from './components/CollegeCounselor'
 import Enlaces from './components/Enlaces'
 import Login from './components/Login'
+import RoleSwitcher from './components/RoleSwitcher'
 import { useStore } from './hooks/useStore'
 import { useAuth } from './hooks/useAuth'
+import { supabase, missingConfig } from './lib/supabase'
+import { hasFeature } from './lib/schoolFeatures'
 import { parseISO, differenceInDays } from 'date-fns'
 
 const VIEW_TITLES = {
@@ -36,7 +39,50 @@ export default function App() {
     loadVigilancias, saveVigilancias,
   } = useStore()
 
-  const { role, fullName, authLoading, login, logout } = useAuth()
+  const { user, role, fullName, authLoading, login, logout,
+    isSuperAdmin, previewRole, setPreviewRole, schoolId, setPreviewSchoolId,
+  } = useAuth()
+
+  // Las escuelas solo se pueden leer con sesión iniciada (RLS), por eso dependen de `user`
+  const [schools, setSchools] = useState([])
+  const userId = user?.id ?? null
+  useEffect(() => {
+    if (missingConfig || !userId) return
+    supabase.from('schools').select('id, name, slug').eq('active', true).order('sort_order').order('name')
+      .then(({ data }) => setSchools(data ?? []))
+  }, [userId])
+
+  const schoolSlug = userId ? (schools.find(s => s.id === schoolId)?.slug ?? null) : null
+  const features = {
+    vigilancias: hasFeature(schoolSlug, 'vigilancias'),
+    counseling:  hasFeature(schoolSlug, 'counseling'),
+  }
+  // Si la escuela actual no tiene el módulo abierto (p. ej. al cambiar de escuela), volver al dashboard
+  const currentView = activeView === 'counselor' && !features.counseling ? 'dashboard' : activeView
+
+  const switcher = isSuperAdmin && (
+    <RoleSwitcher
+      previewRole={previewRole}
+      onChangeRole={setPreviewRole}
+      schools={schools}
+      schoolId={schoolId}
+      onChangeSchool={setPreviewSchoolId}
+    />
+  )
+
+  const adminPanel = (
+    <AdminPanel
+      events={events} subjects={subjects}
+      onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent}
+      onAddSubject={addSubject} onDeleteSubject={deleteSubject}
+      onSaveVigilancias={saveVigilancias} onLoadVigilancias={loadVigilancias}
+      links={links} onSaveLinks={saveLinks}
+      showVigilancias={features.vigilancias}
+      schoolSlug={schoolSlug}
+      role={role}
+      onRequestLogin={() => setShowLogin(true)}
+    />
+  )
 
   const navigate = (view) => { setActiveView(view); setSidebarOpen(false) }
 
@@ -80,17 +126,10 @@ export default function App() {
       <div className="flex h-screen bg-slate-100 overflow-hidden">
         {showLogin && <Login onClose={() => setShowLogin(false)} onLogin={login} />}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {switcher}
           <Header activeView="admin" viewTitles={VIEW_TITLES} onMenuToggle={() => {}} eventCount={0} />
           <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-            <AdminPanel
-              events={events} subjects={subjects}
-              onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent}
-              onAddSubject={addSubject} onDeleteSubject={deleteSubject}
-              onSaveVigilancias={saveVigilancias} onLoadVigilancias={loadVigilancias}
-              links={links} onSaveLinks={saveLinks}
-              role={role}
-              onRequestLogin={() => setShowLogin(true)}
-            />
+            {adminPanel}
           </main>
         </div>
       </div>
@@ -101,21 +140,23 @@ export default function App() {
     <div className="flex h-screen bg-slate-100 overflow-hidden">
       {showLogin && <Login onClose={() => setShowLogin(false)} onLogin={login} />}
       <Sidebar
-        activeView={activeView}
+        activeView={currentView}
         onNavigate={navigate}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         role={role}
+        features={features}
         fullName={fullName}
         onLogin={() => setShowLogin(true)}
         onLogout={logout}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header activeView={activeView} viewTitles={VIEW_TITLES} onMenuToggle={() => setSidebarOpen(o => !o)} eventCount={urgentCount} />
+        {switcher}
+        <Header activeView={currentView} viewTitles={VIEW_TITLES} onMenuToggle={() => setSidebarOpen(o => !o)} eventCount={urgentCount} />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {activeView === 'dashboard' && <Dashboard events={events} />}
-          {activeView === 'plans'     && <LessonPlan plans={plans} subjects={subjects} onSave={savePlan} />}
-          {activeView === 'counselor' && (
+          {currentView === 'dashboard' && <Dashboard events={events} showVigilancias={features.vigilancias} />}
+          {currentView === 'plans'     && <LessonPlan plans={plans} subjects={subjects} onSave={savePlan} schoolSlug={schoolSlug} />}
+          {currentView === 'counselor' && (
             <CollegeCounselor
               sessions={counselingSessions}
               role={role}
@@ -124,7 +165,8 @@ export default function App() {
               onUpdateAttendance={updateCounselingAttendance}
             />
           )}
-          {activeView === 'enlaces'   && <Enlaces links={links} />}
+          {currentView === 'enlaces'   && <Enlaces links={links} />}
+          {currentView === 'admin'     && adminPanel}
         </main>
       </div>
     </div>

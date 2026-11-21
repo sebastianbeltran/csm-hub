@@ -23,7 +23,7 @@ const attendanceBadge = (attended) => {
 const emptyForm = { studentName: '', grade: '', sessionDate: '', sessionTime: '', notes: '' }
 const inp = "w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
 
-const canManage = (role) => role === 'counselor' || role === 'admin'
+const canManage = (role) => ['counselor', 'admin', 'super_admin'].includes(role)
 
 export default function CollegeCounselor({ sessions = [], role, onAdd, onDelete, onUpdateAttendance }) {
   const [filter,      setFilter]      = useState('all')
