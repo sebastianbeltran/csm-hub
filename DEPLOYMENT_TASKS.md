@@ -1,13 +1,152 @@
 # CSM Hub Docente — Plan Maestro de Deployment
-**Versión:** 1.1  
-**Fecha:** Noviembre 2026  
+**Versión:** 1.2  
+**Última actualización:** 20 noviembre 2026  
 **Alcance:** 4 escuelas · ~80 docentes · deployment profesional, seguro y sostenible
 
+---
+
+## CÓMO USAR ESTE ARCHIVO
+Este documento es el único punto de verdad del proyecto. Al inicio de cada sesión, leerlo completo
+antes de escribir una sola línea de código. Contiene el estado actual, decisiones tomadas,
+credenciales de staging, y el backlog priorizado de tareas pendientes.
+
+---
+
+## ✅ PROGRESO — SESIÓN 20 NOV 2026
+
+### Lo que se hizo hoy
+
+**1. Pull del repo**
+Se hizo pull desde GitHub. Había 2 commits nuevos en `main` que no estaban en el PC:
+- `feat: flechas para navegar entre días en Vigilancias del día`
+- `chore: agregar enlace Lesson Plan a la semilla de enlaces`
+
+**2. Análisis completo para deployment profesional**
+Se identificaron todos los problemas de seguridad del estado actual:
+- RLS desactivado en todas las tablas (cualquiera puede leer/escribir toda la data)
+- Tabla `plans` sin `teacher_id` (los planes no tienen dueño)
+- App completamente pública (sin login obligatorio)
+- Sin separación por escuela
+
+**3. Decisiones de arquitectura tomadas**
+- ✅ **Google SSO** como método de auth (el colegio usa Google Workspace `@csm.edu.co`)
+  - **PENDIENTE:** necesita aval del equipo de TI del colegio antes de implementar
+  - **Durante desarrollo:** se usa email + contraseña con usuarios de prueba en staging
+- ✅ **Multi-escuela** desde el diseño (tabla `schools`, `school_id` en todas las tablas)
+- ✅ **Roles:** `super_admin`, `admin`, `coordinador`, `counselor`, `docente`
+- ✅ **React Router** (hay que instalarlo — actualmente el routing es con `useState`)
+
+**4. Entorno de desarrollo configurado**
+- ✅ Rama `develop` creada en GitHub (todo el desarrollo nuevo va aquí)
+- ✅ `main` intacto → producción sigue corriendo sin cambios
+- ✅ Proyecto de staging creado en Supabase: `fnzbdlnngjxqdmwhhezd.supabase.co`
+- ✅ `.env.local` configurado apuntando a staging (nunca va al repo, está en .gitignore)
+- ✅ Vercel configurado: environment "Preview" usa staging, "Production" usa producción
+- ✅ Push a `develop` → Vercel preview con staging. Push a `main` → producción sin cambios.
+
+**5. Schema de base de datos desplegado en staging**
+Se ejecutó `supabase-staging-schema.sql` en el SQL Editor de Supabase staging. Resultado: Success.
+Tablas creadas: `schools`, `profiles`, `events`, `subjects`, `plans`, `counseling_sessions`,
+`vigilancias_config`, `teacher_subjects`.
+RLS habilitado en todas. Triggers, funciones auxiliares e índices creados.
+Dato semilla: escuela "High School" insertada en tabla `schools`.
+
+---
+
+## 🔜 PRÓXIMA SESIÓN — Por dónde arrancar
+
+**Paso inmediato:** Crear los 4 usuarios de prueba en Supabase staging para poder
+desarrollar y testear sin Google OAuth.
+
+Ir a Supabase staging → Authentication → Users → Add user → Create new user:
+
+| Email | Contraseña sugerida | Rol a asignar después |
+|---|---|---|
+| `superadmin@test.com` | `Test1234!` | `super_admin` |
+| `admin@test.com` | `Test1234!` | `admin` |
+| `coordinador@test.com` | `Test1234!` | `coordinador` |
+| `docente@test.com` | `Test1234!` | `docente` |
+
+Después de crearlos, actualizar sus perfiles en la tabla `profiles`:
+```sql
+-- Reemplazar los UUIDs con los IDs reales que asignó Supabase al crear los usuarios
+-- Primero obtener los IDs: Authentication → Users → copiar el UUID de cada uno
+
+-- Obtener el school_id de High School:
+SELECT id FROM schools WHERE slug = 'high_school';
+
+-- Luego actualizar los perfiles (reemplazar los UUIDs):
+UPDATE profiles SET role = 'super_admin', active = true, school_id = '<SCHOOL_ID>' WHERE email = 'superadmin@test.com';
+UPDATE profiles SET role = 'admin',       active = true, school_id = '<SCHOOL_ID>' WHERE email = 'admin@test.com';
+UPDATE profiles SET role = 'coordinador', active = true, school_id = '<SCHOOL_ID>' WHERE email = 'coordinador@test.com';
+UPDATE profiles SET role = 'docente',     active = true, school_id = '<SCHOOL_ID>' WHERE email = 'docente@test.com';
+```
+
+**Después de los usuarios de prueba, el orden de desarrollo es:**
+
+```
+[ ] 1. Instalar React Router y refactorizar App.jsx
+[ ] 2. Crear LoginPage.jsx (email + contraseña por ahora, Google después)
+[ ] 3. Crear AuthGuard.jsx y RoleGuard.jsx
+[ ] 4. Crear PendingActivationPage.jsx
+[ ] 5. Actualizar useAuth.js
+[ ] 6. Eliminar el modal Login.jsx actual
+[ ] 7. Actualizar Sidebar con avatar y nombre del usuario
+[ ] 8. Actualizar useStore.js con queries filtradas por school_id y teacher_id
+[ ] 9. Actualizar savePlan() para incluir teacher_id y school_id
+[ ] 10. Actualizar LessonPlan.jsx para mostrar solo materias del docente
+```
+
+---
+
+## CREDENCIALES Y REFERENCIAS TÉCNICAS
+
+### Repositorio
+- **GitHub:** https://github.com/sebastianbeltran/csm-hub
+- **Rama de desarrollo:** `develop`
+- **Rama de producción:** `main`
+
+### Supabase Producción (NO TOCAR durante desarrollo)
+- **URL:** `https://ouzimolmsvflalvbnvff.supabase.co`
+- **Anon key:** en Vercel → Production environment variables
+- **Dashboard:** supabase.com → proyecto `csm-hub-high`
+
+### Supabase Staging (aquí trabajamos)
+- **URL:** `https://fnzbdlnngjxqdmwhhezd.supabase.co`
+- **Anon key:** `sb_publishable_mltSaZwa9BA5FsEUot2JVg_VZMq1nr-`
+- **Dashboard:** supabase.com → proyecto staging
+- **Schema aplicado:** ✅ `supabase-staging-schema.sql` (20 nov 2026)
+
+### Vercel
+- **Producción:** https://csm-hub-high.vercel.app → rama `main` → Supabase producción
+- **Preview:** rama `develop` → Supabase staging
+- **Env vars Preview:** `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` con valores de staging
+
+### Archivos clave del proyecto
+- `.env.local` — credenciales de staging (nunca al repo)
+- `supabase-staging-schema.sql` — schema completo, ya ejecutado en staging
+- `DEPLOYMENT_TASKS.md` — este archivo
+
+---
+
+## DECISIONES TOMADAS (no reabrir sin motivo)
+
+| Decisión | Detalle |
+|---|---|
+| Auth provider | Google SSO para producción. Email/contraseña para desarrollo hasta tener aval del colegio. |
+| Multi-escuela | Tabla `schools` + `school_id` en todas las tablas relevantes desde el inicio |
+| Roles | `super_admin`, `admin`, `coordinador`, `counselor`, `docente` |
+| Onboarding docentes | Google SSO: se registran solos al primer login. Admin activa la cuenta asignando escuela y materias. |
+| Planes sin dueño | Los 386 planes existentes en producción se migrarán asignándolos a `jbeltran2@csm.edu.co` como datos históricos |
+| IDs de eventos | Cambiar de `Date.now()` a UUID generado por Supabase |
+| Router | Instalar `react-router-dom` antes de empezar las vistas nuevas |
+| App en producción | Se mantiene en línea y funcional durante todo el desarrollo. Solo se toca cuando una fase completa esté probada en staging. |
+
+---
+
 > **Decisión confirmada:** El colegio usa **Google Workspace** con correos `@csm.edu.co`.
-> La autenticación será exclusivamente via **Google OAuth (SSO)**.
-> Esto elimina: importación CSV, Edge Functions de creación de usuarios, flujo de recuperar contraseña,
-> emails de invitación, y el setup de contraseña en el primer login.
-> Los docentes entran con su cuenta institucional de Google que ya tienen y usan.
+> La autenticación final será via **Google OAuth (SSO)** — pendiente aval del equipo de TI.
+> Durante el desarrollo se usa email + contraseña con usuarios de prueba en staging.
 
 ---
 
