@@ -1,23 +1,29 @@
-import { LayoutDashboard, BookOpen, GraduationCap, Link2, LogIn, LogOut, ShieldCheck, Settings, CalendarClock } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { LayoutDashboard, BookOpen, GraduationCap, Link2, LogOut, ShieldCheck, Settings, CalendarClock } from 'lucide-react'
 
 const ROLE_LABELS = {
   super_admin: { label: 'Super admin',   cls: 'bg-amber-900 text-amber-300'  },
   admin:       { label: 'Administrador', cls: 'bg-green-900 text-green-300'  },
   director:    { label: 'Director',      cls: 'bg-violet-900 text-violet-300' },
-  counselor: { label: 'Counselor',     cls: 'bg-sky-900 text-sky-300'      },
-  docente:   { label: 'Docente',       cls: 'bg-slate-700 text-slate-300'  },
+  counselor:   { label: 'Counselor',     cls: 'bg-sky-900 text-sky-300'      },
+  docente:     { label: 'Docente',       cls: 'bg-slate-700 text-slate-300'  },
 }
 
 const NAV = [
-  { id: 'dashboard', label: 'Dashboard',           icon: LayoutDashboard },
-  { id: 'horario',   label: '¿Cómo va mi horario?', icon: CalendarClock   },
-  { id: 'plans',     label: 'Plan Semanal',         icon: BookOpen        },
-  { id: 'counselor', label: 'College Counseling',   icon: GraduationCap, feature: 'counseling' },
-  { id: 'enlaces',   label: 'Enlaces de interés',   icon: Link2           },
-  { id: 'admin',     label: 'Administración',       icon: Settings, roles: ['admin', 'super_admin', 'director'] },
+  { path: '/',           label: 'Dashboard',            icon: LayoutDashboard },
+  { path: '/horario',    label: '¿Cómo va mi horario?', icon: CalendarClock   },
+  { path: '/planes',     label: 'Plan Semanal',         icon: BookOpen        },
+  { path: '/counseling', label: 'College Counseling',   icon: GraduationCap,  feature: 'counseling' },
+  { path: '/enlaces',    label: 'Enlaces de interés',   icon: Link2           },
+  { path: '/admin',      label: 'Administración',       icon: Settings,       roles: ['admin', 'super_admin', 'director'] },
 ]
 
-export default function Sidebar({ activeView, onNavigate, isOpen, onClose, role, features = {}, fullName, onLogin, onLogout }) {
+export default function Sidebar({ isOpen, onClose, role, features = {}, fullName, onLogout }) {
+  const { pathname } = useLocation()
+
+  const isActive = (path) =>
+    path === '/' ? pathname === '/' : pathname.startsWith(path)
+
   return (
     <>
       {isOpen && (
@@ -43,41 +49,40 @@ export default function Sidebar({ activeView, onNavigate, isOpen, onClose, role,
 
         {/* Nav */}
         <nav className="flex-1 p-4 space-y-1">
-          {NAV.filter(item => (!item.roles || item.roles.includes(role)) && (!item.feature || features[item.feature])).map(({ id, label, icon: Icon }) => {
-            const active = activeView === id
-            return (
-              <button
-                key={id}
-                onClick={() => { onNavigate(id); onClose() }}
-                className={`
-                  w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium
-                  transition-all duration-150 text-left
-                  ${active
-                    ? 'bg-green-700 text-white shadow-lg shadow-green-900/40'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.07]'
-                  }
-                `}
-              >
-                <Icon size={17} />
-                {label}
-              </button>
+          {NAV
+            .filter(item =>
+              (!item.roles || item.roles.includes(role)) &&
+              (!item.feature || features[item.feature])
             )
-          })}
+            .map(({ path, label, icon: Icon }) => {
+              const active = isActive(path)
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  onClick={onClose}
+                  className={`
+                    w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium
+                    transition-all duration-150
+                    ${active
+                      ? 'bg-green-700 text-white shadow-lg shadow-green-900/40'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.07]'
+                    }
+                  `}
+                >
+                  <Icon size={17} />
+                  {label}
+                </Link>
+              )
+            })
+          }
         </nav>
 
-        {/* Auth section */}
-        <div className="p-4 border-t border-white/[0.07] space-y-3">
+        {/* Usuario */}
+        <div className="p-4 border-t border-white/[0.07]">
           {role ? (
             <LoggedIn role={role} fullName={fullName} onLogout={onLogout} />
-          ) : (
-            <button
-              onClick={onLogin}
-              className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/[0.07] transition-all duration-150"
-            >
-              <LogIn size={16} />
-              Iniciar sesión
-            </button>
-          )}
+          ) : null}
         </div>
       </aside>
     </>

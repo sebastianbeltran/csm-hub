@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AlertCircle } from 'lucide-react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
@@ -8,8 +9,9 @@ import AdminPanel from './components/AdminPanel'
 import CollegeCounselor from './components/CollegeCounselor'
 import HorarioSemanal from './components/HorarioSemanal'
 import Enlaces from './components/Enlaces'
-import Login from './components/Login'
 import RoleSwitcher from './components/RoleSwitcher'
+import LoginPage from './pages/LoginPage'
+import PendingActivationPage from './pages/PendingActivationPage'
 import { useStore } from './hooks/useStore'
 import { useAuth } from './hooks/useAuth'
 import { supabase, missingConfig } from './lib/supabase'
@@ -25,28 +27,32 @@ const VIEW_TITLES = {
   admin:     'Panel de Administración',
 }
 
-const isAdminRoute = () => window.location.pathname === '/admin'
+const PATH_TO_VIEW = {
+  '/':           'dashboard',
+  '/horario':    'horario',
+  '/planes':     'plans',
+  '/counseling': 'counselor',
+  '/enlaces':    'enlaces',
+  '/admin':      'admin',
+}
 
 export default function App() {
-  const [activeView,  setActiveView]  = useState(isAdminRoute() ? 'admin' : 'dashboard')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [showLogin,   setShowLogin]   = useState(false)
+  return (
+    <BrowserRouter>
+      <AppInner />
+    </BrowserRouter>
+  )
+}
 
-  const { user, role, fullName, authLoading, login, logout,
+function AppInner() {
+  const location = useLocation()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const { user, profile, role, fullName, authLoading, login, logout,
     isSuperAdmin, previewRole, setPreviewRole, schoolId, setPreviewSchoolId,
   } = useAuth()
 
-  const { events, plans, subjects, counselingSessions, scheduleEvents, links, loading, error,
-    saveLinks,
-    addEvent, updateEvent, deleteEvent,
-    savePlan,
-    addSubject, deleteSubject,
-    addScheduleEvent, updateScheduleEvent, deleteScheduleEvent,
-    addCounselingSession, deleteCounselingSession, updateCounselingAttendance,
-    loadVigilancias, saveVigilancias,
-  } = useStore({ userId: user?.id ?? null, schoolId })
-
-  // Las escuelas solo se pueden leer con sesión iniciada (RLS), por eso dependen de `user`
+  // Schools se carga antes de useStore para derivar schoolSlug
   const [schools, setSchools] = useState([])
   const userId = user?.id ?? null
   useEffect(() => {
@@ -56,12 +62,81 @@ export default function App() {
   }, [userId])
 
   const schoolSlug = userId ? (schools.find(s => s.id === schoolId)?.slug ?? null) : null
+
+  const { events, plans, subjects, counselingSessions, scheduleEvents, links, loading, error,
+    saveLinks,
+    addEvent, updateEvent, deleteEvent,
+    savePlan,
+    addSubject, deleteSubject,
+    addScheduleEvent, updateScheduleEvent, deleteScheduleEvent,
+    addCounselingSession, deleteCounselingSession, updateCounselingAttendance,
+    loadVigilancias, saveVigilancias,
+  } = useStore({ userId, schoolId, schoolSlug })
+
   const features = {
     vigilancias: hasFeature(schoolSlug, 'vigilancias'),
     counseling:  hasFeature(schoolSlug, 'counseling'),
   }
-  // Si la escuela actual no tiene el módulo abierto (p. ej. al cambiar de escuela), volver al dashboard
-  const currentView = activeView === 'counselor' && !features.counseling ? 'dashboard' : activeView
+
+  const urgentCount = events.filter(e => {
+    try {
+      const days = differenceInDays(parseISO(e.date), new Date())
+      return days >= 0 && days <= 3 && e.priority === 'high'
+    } catch { return false }
+  }).length
+
+  const activeView = PATH_TO_VIEW[location.pathname] || 'dashboard'
+
+  // ── Pantallas de carga y error ─────────────────────────────────────────────
+
+  if (authLoading || loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-100">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-green-700 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-500 text-sm font-medium">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-100">
+        <div className="bg-white rounded-2xl border border-red-200 p-8 max-w-sm text-center">
+          <AlertCircle size={28} className="text-red-400 mx-auto mb-3" />
+          <p className="text-red-600 font-bold mb-2">Error de conexión</p>
+          <p className="text-slate-500 text-sm">{error}</p>
+          <button onClick={() => window.location.reload()}
+            className="mt-5 px-5 py-2 bg-green-700 text-white rounded-xl text-sm font-semibold hover:bg-green-800 transition-colors">
+            Reintentar
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Sin sesión → login ─────────────────────────────────────────────────────
+
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="*" element={<LoginPage onLogin={login} />} />
+      </Routes>
+    )
+  }
+
+  // ── Cuenta pendiente de activación (solo docentes) ─────────────────────────
+
+  if (profile && profile.active === false && role === 'docente') {
+    return (
+      <Routes>
+        <Route path="*" element={<PendingActivationPage onLogout={logout} />} />
+      </Routes>
+    )
+  }
+
+  // ── App principal ──────────────────────────────────────────────────────────
 
   const switcher = isSuperAdmin && (
     <RoleSwitcher
@@ -85,94 +160,46 @@ export default function App() {
       showVigilancias={features.vigilancias}
       schoolSlug={schoolSlug}
       role={role}
-      onRequestLogin={() => setShowLogin(true)}
+      onRequestLogin={() => {}}
     />
   )
 
-  const navigate = (view) => { setActiveView(view); setSidebarOpen(false) }
-
-  const urgentCount = events.filter(e => {
-    try {
-      const days = differenceInDays(parseISO(e.date), new Date())
-      return days >= 0 && days <= 3 && e.priority === 'high'
-    } catch { return false }
-  }).length
-
-  if (loading || authLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-slate-100">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-green-700 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-500 text-sm font-medium">Cargando datos...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-slate-100">
-        <div className="bg-white rounded-2xl border border-red-200 p-8 max-w-sm text-center">
-          <AlertCircle size={28} className="text-red-400 mx-auto mb-3" />
-          <p className="text-red-600 font-bold mb-2">Error de conexión</p>
-          <p className="text-slate-500 text-sm">{error}</p>
-          <button onClick={() => window.location.reload()}
-            className="mt-5 px-5 py-2 bg-green-700 text-white rounded-xl text-sm font-semibold hover:bg-green-800 transition-colors">
-            Reintentar
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // Ruta /admin — sin sidebar
-  if (isAdminRoute()) {
-    return (
-      <div className="flex h-screen bg-slate-100 overflow-hidden">
-        {showLogin && <Login onClose={() => setShowLogin(false)} onLogin={login} />}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {switcher}
-          <Header activeView="admin" viewTitles={VIEW_TITLES} onMenuToggle={() => {}} eventCount={0} />
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-            {adminPanel}
-          </main>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden">
-      {showLogin && <Login onClose={() => setShowLogin(false)} onLogin={login} />}
       <Sidebar
-        activeView={currentView}
-        onNavigate={navigate}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         role={role}
         features={features}
         fullName={fullName}
-        onLogin={() => setShowLogin(true)}
         onLogout={logout}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {switcher}
-        <Header activeView={currentView} viewTitles={VIEW_TITLES} onMenuToggle={() => setSidebarOpen(o => !o)} eventCount={urgentCount} />
+        <Header
+          activeView={activeView}
+          viewTitles={VIEW_TITLES}
+          onMenuToggle={() => setSidebarOpen(o => !o)}
+          eventCount={urgentCount}
+        />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {currentView === 'dashboard' && <Dashboard events={events} scheduleEvents={scheduleEvents} showVigilancias={features.vigilancias} />}
-          {currentView === 'horario'   && <HorarioSemanal scheduleEvents={scheduleEvents} />}
-          {currentView === 'plans'     && <LessonPlan plans={plans} subjects={subjects} onSave={savePlan} schoolSlug={schoolSlug} />}
-          {currentView === 'counselor' && (
-            <CollegeCounselor
-              sessions={counselingSessions}
-              role={role}
-              onAdd={addCounselingSession}
-              onDelete={deleteCounselingSession}
-              onUpdateAttendance={updateCounselingAttendance}
-            />
-          )}
-          {currentView === 'enlaces'   && <Enlaces links={links} />}
-          {currentView === 'admin'     && adminPanel}
+          <Routes>
+            <Route path="/"           element={<Dashboard events={events} scheduleEvents={scheduleEvents} showVigilancias={features.vigilancias} />} />
+            <Route path="/horario"    element={<HorarioSemanal scheduleEvents={scheduleEvents} />} />
+            <Route path="/planes"     element={<LessonPlan plans={plans} subjects={subjects} onSave={savePlan} schoolSlug={schoolSlug} />} />
+            <Route path="/counseling" element={
+              features.counseling
+                ? <CollegeCounselor sessions={counselingSessions} role={role} onAdd={addCounselingSession} onDelete={deleteCounselingSession} onUpdateAttendance={updateCounselingAttendance} />
+                : <Navigate to="/" replace />
+            } />
+            <Route path="/enlaces"    element={<Enlaces links={links} />} />
+            <Route path="/admin"      element={
+              ['admin', 'super_admin', 'director'].includes(role)
+                ? adminPanel
+                : <Navigate to="/" replace />
+            } />
+            <Route path="*"           element={<Navigate to="/" replace />} />
+          </Routes>
         </main>
       </div>
     </div>

@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase, missingConfig } from '../lib/supabase'
 import seedLinks from '../data/enlaces.json'
 
-// Los enlaces se guardan como una lista en vigilancias_config (id = 'enlaces').
-// Mientras no exista ese registro, se muestran los de src/data/enlaces.json.
-const LINKS_ROW_ID = 'enlaces'
+// IDs en vigilancias_config — incluyen el slug de escuela cuando está disponible
+const linksId       = (slug) => slug ? `enlaces_${slug}` : 'enlaces'
+const vigilanciasId = (slug) => slug ? `main_${slug}`    : 'main'
 
 const normalizeCounseling = (s) => ({
   ...s,
@@ -33,7 +33,7 @@ const normalizePlan = (p) => ({
   observaciones:     p.observaciones      ?? '',
 })
 
-export function useStore({ userId = null, schoolId = null } = {}) {
+export function useStore({ userId = null, schoolId = null, schoolSlug = null } = {}) {
   const [events,             setEvents]             = useState([])
   const [plans,              setPlans]              = useState([])
   const [subjects,           setSubjects]           = useState([])
@@ -58,7 +58,7 @@ export function useStore({ userId = null, schoolId = null } = {}) {
         supabase.from('plans').select('*'),
         supabase.from('subjects').select('*').order('grade').order('created_at'),
         supabase.from('counseling_sessions').select('*').order('session_date').order('session_time'),
-        supabase.from('vigilancias_config').select('data').eq('id', LINKS_ROW_ID).maybeSingle(),
+        supabase.from('vigilancias_config').select('data').eq('id', linksId(schoolSlug)).maybeSingle(),
         supabase.from('schedule_events').select('*').order('date').order('time_start'),
       ])
       if (evtsRes.error)   throw evtsRes.error
@@ -80,7 +80,7 @@ export function useStore({ userId = null, schoolId = null } = {}) {
     } finally {
       setLoading(false)
     }
-  }, [userId])
+  }, [userId, schoolSlug])
 
   useEffect(() => { loadAll() }, [loadAll])
 
@@ -167,7 +167,7 @@ export function useStore({ userId = null, schoolId = null } = {}) {
     const { data, error } = await supabase
       .from('vigilancias_config')
       .select('data, updated_at')
-      .eq('id', 'main')
+      .eq('id', vigilanciasId(schoolSlug))
       .single()
     if (error) return null
     return data
@@ -176,15 +176,14 @@ export function useStore({ userId = null, schoolId = null } = {}) {
   const saveVigilancias = async (parsedData) => {
     const { error } = await supabase
       .from('vigilancias_config')
-      .upsert({ id: 'main', data: parsedData, updated_at: new Date().toISOString() })
+      .upsert({ id: vigilanciasId(schoolSlug), data: parsedData, updated_at: new Date().toISOString() })
     return !error
   }
 
-  // Guarda la lista completa de enlaces (agregar, editar, borrar y reordenar pasan por aquí)
   const saveLinks = async (next) => {
     const { error } = await supabase
       .from('vigilancias_config')
-      .upsert({ id: LINKS_ROW_ID, data: next, updated_at: new Date().toISOString() })
+      .upsert({ id: linksId(schoolSlug), data: next, updated_at: new Date().toISOString() })
     if (!error) setLinks(next)
     return !error
   }
