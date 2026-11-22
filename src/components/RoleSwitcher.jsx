@@ -4,7 +4,7 @@ import { PREVIEW_ROLES } from '../hooks/useAuth'
 const ROLE_NAMES = {
   super_admin: 'Super admin',
   admin:       'Admin',
-  coordinador: 'Coordinador',
+  director:    'Director',
   counselor:   'Counselor',
   docente:     'Docente',
 }

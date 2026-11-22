@@ -51,7 +51,21 @@ function relDate(dateStr) {
   } catch { return { label: dateStr, chip: 'bg-slate-100 text-slate-500' } }
 }
 
-export default function Dashboard({ events, showVigilancias = true }) {
+function normalizeScheduleEvents(scheduleEvents) {
+  return (scheduleEvents || []).map(e => ({
+    id:          e.id,
+    title:       e.title,
+    date:        e.date,
+    description: e.description || '',
+    category:    'horario',
+    priority:    'medium',
+    time_start:  e.time_start,
+    time_end:    e.time_end,
+    _isSchedule: true,
+  }))
+}
+
+export default function Dashboard({ events, scheduleEvents = [], showVigilancias = true }) {
   const [view, setView] = useState('week')
   const [focusDate, setFocusDate] = useState(new Date())
   const [modalEvent, setModalEvent] = useState(null)
@@ -79,12 +93,14 @@ export default function Dashboard({ events, showVigilancias = true }) {
         })()
       : format(focusDate, "MMMM yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase())
 
-  const upcoming = events
-    .filter(e => { try { return differenceInDays(parseISO(e.date), startOfToday()) >= 0 } catch { return false } })
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
+  const allEvents = [...events, ...normalizeScheduleEvents(scheduleEvents)]
 
-  const todayEvents = eventsForDay(events, new Date())
-  const urgentCount = events.filter(e => {
+  const upcoming = allEvents
+    .filter(e => { try { return differenceInDays(parseISO(e.date), startOfToday()) >= 0 } catch { return false } })
+    .sort((a, b) => new Date(a.date) - new Date(b.date) || (a.time_start || '').localeCompare(b.time_start || ''))
+
+  const todayEvents = eventsForDay(allEvents, new Date())
+  const urgentCount = allEvents.filter(e => {
     try { const d = differenceInDays(parseISO(e.date), startOfToday()); return d >= 0 && d <= 3 && e.priority === 'high' } catch { return false }
   }).length
 
@@ -139,11 +155,11 @@ export default function Dashboard({ events, showVigilancias = true }) {
             </div>
           </div>
 
-          {view === 'day' && <DayView date={focusDate} events={eventsForDay(events, focusDate)} />}
+          {view === 'day' && <DayView date={focusDate} events={eventsForDay(allEvents, focusDate)} />}
           {view === 'week' && (
             <WeekView
               focusDate={focusDate}
-              events={events}
+              events={allEvents}
               onOpenModal={setModalEvent}
               onDayClick={(day) => { setFocusDate(day); setView('day') }}
             />
@@ -151,7 +167,7 @@ export default function Dashboard({ events, showVigilancias = true }) {
           {view === 'month' && (
             <MonthView
               focusDate={focusDate}
-              events={events}
+              events={allEvents}
               onDayClick={(day) => { setFocusDate(day); setView('day') }}
             />
           )}
@@ -202,9 +218,15 @@ export default function Dashboard({ events, showVigilancias = true }) {
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-800 truncate">{event.title}</p>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${style.bg} ${style.text}`}>
-                        {style.label}
-                      </span>
+                      {event._isSchedule ? (
+                        <span className="text-xs text-teal-600 font-semibold">
+                          📢 {event.time_start}–{event.time_end}
+                        </span>
+                      ) : (
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${style.bg} ${style.text}`}>
+                          {style.label}
+                        </span>
+                      )}
                     </div>
                     {event.priority === 'high' && (
                       <AlertCircle size={13} className="text-red-500 flex-shrink-0" />
@@ -304,6 +326,9 @@ function DayCard({ event }) {
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 border-l-4" style={{ borderLeftColor: style.accent }}>
       <div className="flex items-center gap-2 flex-wrap mb-1">
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}>{style.label}</span>
+        {event._isSchedule && event.time_start && (
+          <span className="text-xs font-semibold text-teal-600">{event.time_start}–{event.time_end}</span>
+        )}
         {event.priority === 'high' && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">⚠ Alta</span>}
       </div>
       <p className="text-sm font-bold text-slate-800">{event.title}</p>

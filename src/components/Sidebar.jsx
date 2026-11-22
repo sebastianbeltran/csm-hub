@@ -1,19 +1,20 @@
-import { LayoutDashboard, BookOpen, GraduationCap, Link2, LogIn, LogOut, ShieldCheck, Settings } from 'lucide-react'
+import { LayoutDashboard, BookOpen, GraduationCap, Link2, LogIn, LogOut, ShieldCheck, Settings, CalendarClock } from 'lucide-react'
 
 const ROLE_LABELS = {
   super_admin: { label: 'Super admin',   cls: 'bg-amber-900 text-amber-300'  },
   admin:       { label: 'Administrador', cls: 'bg-green-900 text-green-300'  },
-  coordinador: { label: 'Coordinador',   cls: 'bg-violet-900 text-violet-300' },
+  director:    { label: 'Director',      cls: 'bg-violet-900 text-violet-300' },
   counselor: { label: 'Counselor',     cls: 'bg-sky-900 text-sky-300'      },
   docente:   { label: 'Docente',       cls: 'bg-slate-700 text-slate-300'  },
 }
 
 const NAV = [
-  { id: 'dashboard', label: 'Dashboard',         icon: LayoutDashboard },
-  { id: 'plans',     label: 'Plan Semanal',       icon: BookOpen        },
-  { id: 'counselor', label: 'College Counseling', icon: GraduationCap, feature: 'counseling' },
-  { id: 'enlaces',   label: 'Enlaces de interés', icon: Link2           },
-  { id: 'admin',     label: 'Administración',     icon: Settings, roles: ['admin', 'super_admin'] },
+  { id: 'dashboard', label: 'Dashboard',           icon: LayoutDashboard },
+  { id: 'horario',   label: '¿Cómo va mi horario?', icon: CalendarClock   },
+  { id: 'plans',     label: 'Plan Semanal',         icon: BookOpen        },
+  { id: 'counselor', label: 'College Counseling',   icon: GraduationCap, feature: 'counseling' },
+  { id: 'enlaces',   label: 'Enlaces de interés',   icon: Link2           },
+  { id: 'admin',     label: 'Administración',       icon: Settings, roles: ['admin', 'super_admin', 'director'] },
 ]
 
 export default function Sidebar({ activeView, onNavigate, isOpen, onClose, role, features = {}, fullName, onLogin, onLogout }) {

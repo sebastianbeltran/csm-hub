@@ -33,11 +33,12 @@ const normalizePlan = (p) => ({
   observaciones:     p.observaciones      ?? '',
 })
 
-export function useStore() {
+export function useStore({ userId = null, schoolId = null } = {}) {
   const [events,             setEvents]             = useState([])
   const [plans,              setPlans]              = useState([])
   const [subjects,           setSubjects]           = useState([])
   const [counselingSessions, setCounselingSessions] = useState([])
+  const [scheduleEvents,     setScheduleEvents]     = useState([])
   const [links,              setLinks]              = useState(seedLinks)
   const [loading,           setLoading]            = useState(true)
   const [error,              setError]              = useState(null)
@@ -48,15 +49,17 @@ export function useStore() {
       setLoading(false)
       return
     }
+    if (!userId) { setLoading(false); return }
     setLoading(true)
     setError(null)
     try {
-      const [evtsRes, plnsRes, subsRes, counselRes, linksRes] = await Promise.all([
+      const [evtsRes, plnsRes, subsRes, counselRes, linksRes, schedEvtsRes] = await Promise.all([
         supabase.from('events').select('*').order('date', { ascending: true }),
         supabase.from('plans').select('*'),
         supabase.from('subjects').select('*').order('grade').order('created_at'),
         supabase.from('counseling_sessions').select('*').order('session_date').order('session_time'),
         supabase.from('vigilancias_config').select('data').eq('id', LINKS_ROW_ID).maybeSingle(),
+        supabase.from('schedule_events').select('*').order('date').order('time_start'),
       ])
       if (evtsRes.error)   throw evtsRes.error
       if (plnsRes.error)   throw plnsRes.error
@@ -66,12 +69,18 @@ export function useStore() {
       setSubjects(subsRes.data ?? [])
       if (!counselRes.error) setCounselingSessions((counselRes.data ?? []).map(normalizeCounseling))
       if (!linksRes.error && Array.isArray(linksRes.data?.data)) setLinks(linksRes.data.data)
+      if (!schedEvtsRes.error) {
+        const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
+        // Limpiar eventos pasados (fire-and-forget; solo funciona para admin por RLS)
+        supabase.from('schedule_events').delete().lt('date', today).then(() => {})
+        setScheduleEvents((schedEvtsRes.data ?? []).filter(e => e.date >= today))
+      }
     } catch (err) {
       setError(err.message ?? 'Error al conectar con la base de datos')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [userId])
 
   useEffect(() => { loadAll() }, [loadAll])
 
@@ -92,14 +101,14 @@ export function useStore() {
   }
 
   const savePlan = async (plan) => {
-    const row = { ...plan, saved_at: new Date().toISOString() }
+    const row = { ...plan, teacher_id: userId, school_id: schoolId, saved_at: new Date().toISOString() }
     const { data, error } = await supabase.from('plans').upsert(row).select().single()
     if (!error && data) setPlans(prev => [...prev.filter(p => p.id !== plan.id), normalizePlan(data)])
   }
 
   const addSubject = async (subject) => {
     const id = `${subject.label.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${subject.grade}_${Date.now()}`
-    const row = { ...subject, id }
+    const row = { ...subject, id, school_id: schoolId }
     const { data, error } = await supabase.from('subjects').insert(row).select().single()
     if (!error && data) setSubjects(prev => [...prev, data])
   }
@@ -107,6 +116,25 @@ export function useStore() {
   const deleteSubject = async (id) => {
     const { error } = await supabase.from('subjects').delete().eq('id', id)
     if (!error) setSubjects(prev => prev.filter(s => s.id !== id))
+  }
+
+  const addScheduleEvent = async (evt) => {
+    const row = { ...evt, school_id: schoolId, created_by: userId }
+    const { data, error } = await supabase.from('schedule_events').insert(row).select().single()
+    if (!error && data) setScheduleEvents(prev => [...prev, data].sort((a, b) => a.date.localeCompare(b.date) || a.time_start.localeCompare(b.time_start)))
+    return !error
+  }
+
+  const updateScheduleEvent = async (evt) => {
+    const { id, ...fields } = evt
+    const { data, error } = await supabase.from('schedule_events').update(fields).eq('id', id).select().single()
+    if (!error && data) setScheduleEvents(prev => prev.map(e => e.id === id ? data : e).sort((a, b) => a.date.localeCompare(b.date) || a.time_start.localeCompare(b.time_start)))
+    return !error
+  }
+
+  const deleteScheduleEvent = async (id) => {
+    const { error } = await supabase.from('schedule_events').delete().eq('id', id)
+    if (!error) setScheduleEvents(prev => prev.filter(e => e.id !== id))
   }
 
   const addCounselingSession = async (session) => {
@@ -117,6 +145,7 @@ export function useStore() {
       session_time: session.sessionTime,
       attended:     null,
       notes:        session.notes || null,
+      school_id:    schoolId,
     }
     const { data, error } = await supabase.from('counseling_sessions').insert(row).select().single()
     if (!error && data) setCounselingSessions(prev => [...prev, normalizeCounseling(data)].sort(sortCounseling))
@@ -161,11 +190,12 @@ export function useStore() {
   }
 
   return {
-    events, plans, subjects, counselingSessions, links, loading, error,
+    events, plans, subjects, counselingSessions, scheduleEvents, links, loading, error,
     saveLinks,
     addEvent, updateEvent, deleteEvent,
     savePlan,
     addSubject, deleteSubject,
+    addScheduleEvent, updateScheduleEvent, deleteScheduleEvent,
     addCounselingSession, deleteCounselingSession, updateCounselingAttendance,
     loadVigilancias, saveVigilancias,
   }

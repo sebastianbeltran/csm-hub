@@ -24,7 +24,7 @@ CREATE TABLE profiles (
   full_name  TEXT,
   email      TEXT,
   role       TEXT NOT NULL DEFAULT 'docente'
-               CHECK (role IN ('super_admin','admin','coordinador','counselor','docente')),
+               CHECK (role IN ('super_admin','admin','director','counselor','docente')),
   school_id  UUID REFERENCES schools(id),
   active     BOOLEAN DEFAULT FALSE,
   last_login TIMESTAMPTZ,
@@ -137,7 +137,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.is_coordinator_or_above()
 RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER AS $$
-  SELECT public.get_my_role() IN ('coordinador', 'admin', 'super_admin')
+  SELECT public.get_my_role() IN ('director', 'admin', 'super_admin')
 $$;
 
 
@@ -267,7 +267,7 @@ CREATE POLICY "counseling_select_staff"
   ON counseling_sessions FOR SELECT
   USING (auth.uid() IS NOT NULL
     AND school_id = public.get_my_school_id()
-    AND public.get_my_role() IN ('counselor','admin','super_admin','coordinador'));
+    AND public.get_my_role() IN ('counselor','admin','super_admin','director'));
 
 CREATE POLICY "counseling_insert_counselor"
   ON counseling_sessions FOR INSERT
@@ -374,3 +374,41 @@ INSERT INTO schools (name, slug, sort_order) VALUES
   ('Primary School',  'primary_school',  2),
   ('Middle School',   'middle_school',   3),
   ('High School',     'high_school',     4);
+
+
+-- ================================================
+-- SCHEDULE_EVENTS — Eventos del horario (agregado 21 nov 2026)
+-- Ejecutar por separado en Supabase SQL Editor → staging
+-- ================================================
+
+CREATE TABLE schedule_events (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id      UUID REFERENCES schools(id),
+  title          TEXT NOT NULL,
+  description    TEXT,
+  date           DATE NOT NULL,
+  time_start     TEXT NOT NULL,  -- 'HH:MM'
+  time_end       TEXT NOT NULL,  -- 'HH:MM'
+  target_courses TEXT[] DEFAULT '{}',  -- ej: ['8B', '9A', '10A']
+  created_by     UUID REFERENCES auth.users(id),
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE schedule_events ENABLE ROW LEVEL SECURITY;
+
+-- Docentes ven solo eventos de su escuela
+CREATE POLICY "schedule_events_select"
+  ON schedule_events FOR SELECT
+  USING (auth.uid() IS NOT NULL AND school_id = public.get_my_school_id());
+
+-- Super admin ve todos
+CREATE POLICY "schedule_events_select_super_admin"
+  ON schedule_events FOR SELECT
+  USING (public.is_super_admin());
+
+-- Solo admin/super_admin pueden crear, editar y eliminar
+CREATE POLICY "schedule_events_all_admin"
+  ON schedule_events FOR ALL
+  USING (public.is_admin());
+
+CREATE INDEX idx_schedule_events_school_date ON schedule_events(school_id, date);

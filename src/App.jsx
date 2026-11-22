@@ -6,6 +6,7 @@ import Dashboard from './components/Dashboard'
 import LessonPlan from './components/LessonPlan'
 import AdminPanel from './components/AdminPanel'
 import CollegeCounselor from './components/CollegeCounselor'
+import HorarioSemanal from './components/HorarioSemanal'
 import Enlaces from './components/Enlaces'
 import Login from './components/Login'
 import RoleSwitcher from './components/RoleSwitcher'
@@ -17,6 +18,7 @@ import { parseISO, differenceInDays } from 'date-fns'
 
 const VIEW_TITLES = {
   dashboard: 'Dashboard',
+  horario:   '¿Cómo va mi horario?',
   plans:     'Plan Semanal',
   counselor: 'College Counseling',
   enlaces:   'Enlaces de interés',
@@ -30,18 +32,19 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showLogin,   setShowLogin]   = useState(false)
 
-  const { events, plans, subjects, counselingSessions, links, loading, error,
+  const { user, role, fullName, authLoading, login, logout,
+    isSuperAdmin, previewRole, setPreviewRole, schoolId, setPreviewSchoolId,
+  } = useAuth()
+
+  const { events, plans, subjects, counselingSessions, scheduleEvents, links, loading, error,
     saveLinks,
     addEvent, updateEvent, deleteEvent,
     savePlan,
     addSubject, deleteSubject,
+    addScheduleEvent, updateScheduleEvent, deleteScheduleEvent,
     addCounselingSession, deleteCounselingSession, updateCounselingAttendance,
     loadVigilancias, saveVigilancias,
-  } = useStore()
-
-  const { user, role, fullName, authLoading, login, logout,
-    isSuperAdmin, previewRole, setPreviewRole, schoolId, setPreviewSchoolId,
-  } = useAuth()
+  } = useStore({ userId: user?.id ?? null, schoolId })
 
   // Las escuelas solo se pueden leer con sesión iniciada (RLS), por eso dependen de `user`
   const [schools, setSchools] = useState([])
@@ -75,6 +78,8 @@ export default function App() {
       events={events} subjects={subjects}
       onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent}
       onAddSubject={addSubject} onDeleteSubject={deleteSubject}
+      scheduleEvents={scheduleEvents}
+      onAddScheduleEvent={addScheduleEvent} onUpdateScheduleEvent={updateScheduleEvent} onDeleteScheduleEvent={deleteScheduleEvent}
       onSaveVigilancias={saveVigilancias} onLoadVigilancias={loadVigilancias}
       links={links} onSaveLinks={saveLinks}
       showVigilancias={features.vigilancias}
@@ -154,7 +159,8 @@ export default function App() {
         {switcher}
         <Header activeView={currentView} viewTitles={VIEW_TITLES} onMenuToggle={() => setSidebarOpen(o => !o)} eventCount={urgentCount} />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {currentView === 'dashboard' && <Dashboard events={events} showVigilancias={features.vigilancias} />}
+          {currentView === 'dashboard' && <Dashboard events={events} scheduleEvents={scheduleEvents} showVigilancias={features.vigilancias} />}
+          {currentView === 'horario'   && <HorarioSemanal scheduleEvents={scheduleEvents} />}
           {currentView === 'plans'     && <LessonPlan plans={plans} subjects={subjects} onSave={savePlan} schoolSlug={schoolSlug} />}
           {currentView === 'counselor' && (
             <CollegeCounselor

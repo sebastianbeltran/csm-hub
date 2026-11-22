@@ -198,6 +198,7 @@ FASE 0 — Arquitectura y decisiones previas (hacer primero, bloquea todo lo dem
 FASE 1 — Base de datos y seguridad (crítico, antes de crear cualquier cuenta)
 FASE 2 — Autenticación obligatoria y flujos de usuario
 FASE 3 — Multi-escuela y perfiles por docente
+FASE 3.5 — Builder de Horarios (admin crea y publica horarios de docentes desde la app)
 FASE 4 — Funcionalidades nuevas (admin de escuela, coordinador, gestión de usuarios)
 FASE 5 — Calidad de código y robustez
 FASE 6 — Performance y escalabilidad
@@ -903,6 +904,45 @@ La tabla `vigilancias_config` usa IDs de texto como `'main'` y `'enlaces'`. Para
 Actualizar `loadVigilancias()` y `saveVigilancias()` para incluir el school slug como parte del ID.
 
 Actualizar el parser y el componente `ViglanciasHoy.jsx` para leer del key correcto según la escuela del usuario.
+
+---
+
+## FASE 3.5 — BUILDER DE HORARIOS
+> Hoy los horarios están hardcodeados (un Excel parseado por docente). Esta fase los lleva a la BD y los hace gestionables desde la misma app.
+
+### 3.5.1 — Tabla `schedule_slots` en Supabase
+```sql
+CREATE TABLE schedule_slots (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  teacher_id  UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  school_id   UUID REFERENCES schools(id),
+  day_of_week INT NOT NULL,   -- 0=Lun, 4=Vie
+  period_id   TEXT NOT NULL,  -- 'P1', 'P2', … 'DG', 'recreo'
+  time_start  TEXT NOT NULL,
+  time_end    TEXT NOT NULL,
+  label       TEXT,           -- 'Proy 10A', '8B', etc.
+  course      TEXT,           -- grupo objetivo: '10A', '8B' (para matching de eventos)
+  grade       TEXT,
+  is_ms       BOOLEAN DEFAULT FALSE,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### 3.5.2 — UI de builder para admin/coordinador
+Grilla visual (días × periodos) donde el admin asigna clases a cada docente. Requisitos:
+- Selector de docente (lista de docentes de la escuela)
+- Grilla editable: click en celda → modal de asignación (label, course, grade)
+- Indicador de conflictos: mismo docente en dos slots simultáneos
+- Cambios se guardan como borrador hasta publicar
+
+### 3.5.3 — Flujo borrador → publicado
+Columna `published` en `schedule_slots`. Mientras `published = false`, el docente no ve el horario en "¿Cómo va mi horario?". El admin hace clic en "Publicar horario" → todos los slots pasan a `published = true`.
+
+### 3.5.4 — Migrar MY_SCHEDULE hardcodeado a BD
+Una vez que el builder esté listo, el horario de Sebastián (actualmente en `MY_SCHEDULE` de `HorarioSemanal.jsx`) se carga desde `schedule_slots` filtrando por `teacher_id = userId`. El componente recibe `scheduleSlots` como prop desde `useStore`.
+
+### 3.5.5 — Reemplazos con disponibilidad real
+Con los horarios en BD, `loadVigilancias` puede hacer una query real: "¿qué teachers tienen `schedule_slots.period_id = X` vacío en la fecha Y?" en vez del placeholder actual.
 
 ---
 

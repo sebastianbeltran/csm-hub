@@ -47,6 +47,14 @@ export const CATEGORY_STYLES = {
     light: 'bg-pink-50',
     accent: '#ec4899',
   },
+  horario: {
+    label: 'Actividad',
+    bg: 'bg-teal-100',
+    text: 'text-teal-700',
+    dot: 'bg-teal-500',
+    light: 'bg-teal-50',
+    accent: '#14b8a6',
+  },
 }
 
 const offset = (days) => {

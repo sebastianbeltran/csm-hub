@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { Plus, Trash2, Calendar, BookOpen, Pencil, X, Eye, Upload, CheckCircle, AlertCircle, LogIn, ShieldAlert, Link2, ArrowUp, ArrowDown, ExternalLink } from 'lucide-react'
+import { Plus, Trash2, Calendar, BookOpen, Pencil, X, Eye, Upload, CheckCircle, AlertCircle, LogIn, ShieldAlert, Link2, ArrowUp, ArrowDown, ExternalLink, CalendarClock } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { CATEGORY_STYLES } from '../data/constants'
@@ -15,19 +15,22 @@ const PRIORITIES = [
 ]
 const emptyEvent = { title: '', description: '', date: '', category: 'academico', priority: 'medium' }
 
-export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias = true, schoolSlug, role, onRequestLogin }) {
+export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, scheduleEvents, onAddScheduleEvent, onUpdateScheduleEvent, onDeleteScheduleEvent, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias = true, schoolSlug, role, onRequestLogin }) {
   if (!role) return <LoginRequired onRequestLogin={onRequestLogin} />
-  if (role !== 'admin' && role !== 'super_admin') return <AccessDenied />
+  if (!['admin', 'super_admin', 'director'].includes(role)) return <AccessDenied />
 
   return (
     <AdminContent
       events={events} subjects={subjects}
       onAddEvent={onAddEvent} onUpdateEvent={onUpdateEvent} onDeleteEvent={onDeleteEvent}
       onAddSubject={onAddSubject} onDeleteSubject={onDeleteSubject}
+      scheduleEvents={scheduleEvents}
+      onAddScheduleEvent={onAddScheduleEvent} onUpdateScheduleEvent={onUpdateScheduleEvent} onDeleteScheduleEvent={onDeleteScheduleEvent}
       onSaveVigilancias={onSaveVigilancias} onLoadVigilancias={onLoadVigilancias}
       links={links} onSaveLinks={onSaveLinks}
       showVigilancias={showVigilancias}
       schoolSlug={schoolSlug}
+      role={role}
     />
   )
 }
@@ -66,21 +69,23 @@ function AccessDenied() {
 }
 
 /* ─── Admin Content ──────────────────────────────────── */
-function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias, schoolSlug }) {
-  const [selectedTab, setTab] = useState('events')
-  // Si la escuela cambia a una sin vigilancias, no dejar la pestaña vacía
+function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, scheduleEvents, onAddScheduleEvent, onUpdateScheduleEvent, onDeleteScheduleEvent, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias, schoolSlug, role }) {
+  const isDirector = role === 'director'
+  const [selectedTab, setTab] = useState(isDirector ? 'horario' : 'events')
   const tab = selectedTab === 'vigilancias' && !showVigilancias ? 'events' : selectedTab
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto">
       <div className="flex gap-2 bg-white border border-slate-200 rounded-2xl p-1.5 w-fit max-w-full overflow-x-auto">
-        <TabBtn active={tab === 'events'}      onClick={() => setTab('events')}      icon={<Calendar size={14} />} label="Calendario"  />
-        <TabBtn active={tab === 'subjects'}    onClick={() => setTab('subjects')}    icon={<BookOpen size={14} />} label="Materias"    />
-        {showVigilancias && <TabBtn active={tab === 'vigilancias'} onClick={() => setTab('vigilancias')} icon={<Eye size={14} />}      label="Vigilancias" />}
-        <TabBtn active={tab === 'enlaces'}     onClick={() => setTab('enlaces')}     icon={<Link2 size={14} />}    label="Enlaces"     />
+        {!isDirector && <TabBtn active={tab === 'events'}   onClick={() => setTab('events')}   icon={<Calendar size={14} />}     label="Calendario"  />}
+        <TabBtn active={tab === 'horario'}     onClick={() => setTab('horario')}     icon={<CalendarClock size={14} />} label="Horario"     />
+        {!isDirector && <TabBtn active={tab === 'subjects'} onClick={() => setTab('subjects')} icon={<BookOpen size={14} />}     label="Materias"    />}
+        {!isDirector && showVigilancias && <TabBtn active={tab === 'vigilancias'} onClick={() => setTab('vigilancias')} icon={<Eye size={14} />} label="Vigilancias" />}
+        {!isDirector && <TabBtn active={tab === 'enlaces'}  onClick={() => setTab('enlaces')}  icon={<Link2 size={14} />}        label="Enlaces"     />}
       </div>
 
       {tab === 'events'      && <EventsTab events={events} onAdd={onAddEvent} onUpdate={onUpdateEvent} onDelete={onDeleteEvent} />}
+      {tab === 'horario'     && <ScheduleEventsTab scheduleEvents={scheduleEvents ?? []} onAdd={onAddScheduleEvent} onUpdate={onUpdateScheduleEvent} onDelete={onDeleteScheduleEvent} />}
       {tab === 'subjects'    && <SubjectsTab schoolSlug={schoolSlug} subjects={subjects} onAdd={onAddSubject} onDelete={onDeleteSubject} />}
       {tab === 'vigilancias' && <ViglanciasTab onSave={onSaveVigilancias} onLoad={onLoadVigilancias} />}
       {tab === 'enlaces'     && <EnlacesTab links={links} onSave={onSaveLinks} />}
@@ -566,6 +571,258 @@ function EnlacesTab({ links, onSave }) {
                 </li>
               ))}
             </ul>
+          )}
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Schedule Events Tab ────────────────────────────── */
+const COURSE_GROUPS = ['7A', '7B', '8A', '8B', '9A', '9B', '10A', '10B', '11°']
+
+const DURATIONS = [
+  { label: '15 min', value: 15 },
+  { label: '30 min', value: 30 },
+  { label: '45 min', value: 45 },
+  { label: '1 hora', value: 60 },
+  { label: '1 h 30', value: 90 },
+  { label: '2 horas', value: 120 },
+  { label: '2 h 30', value: 150 },
+  { label: '3 horas', value: 180 },
+]
+
+const addMinutes = (time, mins) => {
+  const [h, m] = time.split(':').map(Number)
+  const total = h * 60 + m + mins
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
+const emptySchedEvt = { title: '', description: '', date: '', time_start: '', duration: 45, target_courses: [] }
+
+function ScheduleEventsTab({ scheduleEvents, onAdd, onUpdate, onDelete }) {
+  const [form,       setForm]       = useState(emptySchedEvt)
+  const [allSchool,  setAllSchool]  = useState(true)
+  const [editingId,  setEditingId]  = useState(null)
+  const [status,     setStatus]     = useState(null)
+
+  const toggleCourse = (c) => setForm(f => ({
+    ...f,
+    target_courses: f.target_courses.includes(c)
+      ? f.target_courses.filter(x => x !== c)
+      : [...f.target_courses, c],
+  }))
+
+  const timeEnd = form.time_start ? addMinutes(form.time_start, form.duration) : ''
+
+  const startEdit = (evt) => {
+    // Calcular duración desde time_start y time_end almacenados
+    let duration = 45
+    if (evt.time_start && evt.time_end) {
+      const [sh, sm] = evt.time_start.split(':').map(Number)
+      const [eh, em] = evt.time_end.split(':').map(Number)
+      const diff = (eh * 60 + em) - (sh * 60 + sm)
+      const nearest = DURATIONS.reduce((a, b) => Math.abs(b.value - diff) < Math.abs(a.value - diff) ? b : a)
+      duration = nearest.value
+    }
+    setForm({
+      title:          evt.title,
+      description:    evt.description || '',
+      date:           evt.date,
+      time_start:     evt.time_start,
+      duration,
+      target_courses: evt.target_courses || [],
+    })
+    setAllSchool(!(evt.target_courses?.length > 0))
+    setEditingId(evt.id)
+    setStatus(null)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setForm(emptySchedEvt)
+    setAllSchool(true)
+    setStatus(null)
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!form.title.trim() || !form.date || !form.time_start) return
+    if (!allSchool && form.target_courses.length === 0) return
+    setStatus('saving')
+    const payload = {
+      title:          form.title,
+      description:    form.description,
+      date:           form.date,
+      time_start:     form.time_start,
+      time_end:       timeEnd,
+      target_courses: allSchool ? [] : form.target_courses,
+    }
+    const ok = editingId
+      ? await onUpdate?.({ ...payload, id: editingId })
+      : await onAdd?.(payload)
+    if (ok) {
+      setForm(emptySchedEvt)
+      setAllSchool(true)
+      setEditingId(null)
+      setStatus('ok')
+      setTimeout(() => setStatus(null), 2500)
+    } else {
+      setStatus({ error: 'Error al guardar.' })
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      {/* Form */}
+      <div className="lg:col-span-2">
+        <Card title={editingId ? 'Editar actividad' : 'Nueva actividad'} icon={<CalendarClock size={15} className={editingId ? 'text-amber-500' : 'text-teal-600'} />}>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Field label="Título *">
+              <input type="text" placeholder="Ej: Charla orientación vocacional"
+                value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                className={inp} required />
+            </Field>
+            <Field label="Descripción">
+              <textarea placeholder="Detalles adicionales (opcional)"
+                value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                rows={2} className={`${inp} resize-none`} />
+            </Field>
+            <Field label="Fecha *">
+              <input type="date" value={form.date}
+                min={(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()}
+                onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                className={inp} required />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Hora inicio *">
+                <input type="time" value={form.time_start}
+                  onChange={e => setForm(f => ({ ...f, time_start: e.target.value }))}
+                  className={inp} required />
+              </Field>
+              <Field label="Duración *">
+                <select value={form.duration}
+                  onChange={e => setForm(f => ({ ...f, duration: Number(e.target.value) }))}
+                  className={inp}>
+                  {DURATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                </select>
+              </Field>
+            </div>
+            {form.time_start && (
+              <p className="text-xs text-slate-400 -mt-2">
+                Finaliza a las <span className="font-semibold text-slate-600">{timeEnd}</span>
+              </p>
+            )}
+            <Field label="Alcance">
+              {/* Toggle toda la escuela / cursos específicos */}
+              <div className="flex bg-slate-100 rounded-xl p-1 gap-1 mb-3">
+                <button type="button" onClick={() => setAllSchool(true)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${allSchool ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                  Toda la escuela
+                </button>
+                <button type="button" onClick={() => setAllSchool(false)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${!allSchool ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                  Cursos específicos
+                </button>
+              </div>
+
+              {allSchool ? (
+                <p className="text-[11px] text-teal-600 font-medium">
+                  Aparecerá en el horario de todos los profesores de la escuela.
+                </p>
+              ) : (
+                <>
+                  <p className="text-[11px] text-slate-400 mb-2">Solo aparece a los profesores que dictan estos cursos.</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {COURSE_GROUPS.map(c => {
+                      const sel = form.target_courses.includes(c)
+                      return (
+                        <button key={c} type="button" onClick={() => toggleCourse(c)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border-2 transition-all ${
+                            sel ? 'bg-teal-600 border-teal-600 text-white' : 'border-slate-200 text-slate-500 hover:border-teal-400 hover:text-teal-600'
+                          }`}>
+                          {c}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {form.target_courses.length === 0 && (
+                    <p className="text-[11px] text-amber-600 mt-1.5">Seleccioná al menos un curso.</p>
+                  )}
+                </>
+              )}
+            </Field>
+            <div className="flex gap-2">
+              {editingId && (
+                <button type="button" onClick={cancelEdit}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-500 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors">
+                  <X size={15} /> Cancelar
+                </button>
+              )}
+              <button type="submit" disabled={status === 'saving'}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-60 ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-teal-600 hover:bg-teal-700'}`}>
+                {editingId ? <><Pencil size={15} /> Guardar cambios</> : <><Plus size={15} /> {status === 'saving' ? 'Guardando...' : 'Crear actividad'}</>}
+              </button>
+            </div>
+            {status === 'ok' && (
+              <div className="flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-xl p-3">
+                <CheckCircle size={15} className="text-teal-600" />
+                <p className="text-sm text-teal-700 font-medium">{editingId ? 'Cambios guardados.' : 'Actividad creada. Se verá en los horarios.'}</p>
+              </div>
+            )}
+            {status?.error && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
+                <AlertCircle size={15} className="text-red-500 mt-0.5" />
+                <p className="text-sm text-red-600">{status.error}</p>
+              </div>
+            )}
+          </form>
+        </Card>
+      </div>
+
+      {/* List */}
+      <div className="lg:col-span-3">
+        <Card title={`Eventos programados (${scheduleEvents.length})`} icon={<CalendarClock size={15} className="text-teal-600" />}>
+          {scheduleEvents.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-10">Sin eventos de horario creados</p>
+          ) : (
+            <div className="divide-y divide-slate-50 max-h-[500px] overflow-y-auto">
+              {[...scheduleEvents].sort((a, b) => a.date.localeCompare(b.date)).map(evt => {
+                let dl = ''
+                try { dl = format(parseISO(evt.date), "d MMM yyyy", { locale: es }) } catch {}
+                return (
+                  <div key={evt.id} className="py-3 flex items-start gap-3">
+                    <div className="w-2 h-2 rounded-full bg-teal-500 mt-1.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800">{evt.title}</p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                        <span className="text-xs text-slate-500">{dl}</span>
+                        <span className="text-xs text-teal-600 font-medium">{evt.time_start} – {evt.time_end}</span>
+                      </div>
+                      {evt.target_courses?.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {evt.target_courses.map(c => (
+                            <span key={c} className="px-1.5 py-0.5 bg-teal-50 text-teal-700 rounded text-[10px] font-bold">{c}</span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-teal-600 mt-1 block">🏫 Toda la escuela</span>
+                      )}
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button onClick={() => startEdit(evt)}
+                        className={`p-1.5 rounded-lg transition-colors ${editingId === evt.id ? 'text-amber-500 bg-amber-50' : 'text-slate-300 hover:text-amber-500 hover:bg-amber-50'}`}>
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => { if (editingId === evt.id) cancelEdit(); onDelete?.(evt.id) }}
+                        className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </Card>
       </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase, missingConfig } from '../lib/supabase'
 
 // Roles que el super_admin puede "previsualizar" con el selector de vistas.
-export const PREVIEW_ROLES = ['super_admin', 'admin', 'coordinador', 'counselor', 'docente']
+export const PREVIEW_ROLES = ['super_admin', 'admin', 'director', 'counselor', 'docente']
 
 const PREVIEW_ROLE_KEY   = 'csm.previewRole'
 const PREVIEW_SCHOOL_KEY = 'csm.previewSchoolId'
