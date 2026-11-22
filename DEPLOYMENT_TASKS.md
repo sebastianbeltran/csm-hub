@@ -80,41 +80,76 @@ Dato semilla: escuela "High School" insertada en tabla `schools`.
 
 ---
 
+## ✅ PROGRESO — SESIÓN 21 NOV 2026 (desde el PC)
+
+**1. Datos por escuela (Tareas A, B, C, D)**
+- `useStore` ahora acepta `{ userId, schoolId, schoolSlug }`. Mutations incluyen `school_id` y `teacher_id`.
+- ✅ A: `addSubject()` guarda `school_id`; `savePlan()` guarda `teacher_id` y `school_id`.
+- ✅ B: enlaces por escuela — clave `enlaces_<slug>` (ej. `enlaces_high_school`). Fallback a seed si no existe.
+- ✅ C: `addCounselingSession()` guarda `school_id`.
+- ✅ D: vigilancias por escuela — clave `main_<slug>` (ej. `main_high_school`).
+- `loadAll` depende de `schoolSlug`: al cambiar de escuela en "Ver como", los datos se recargan automáticamente.
+- ⚠️ Los datos de vigilancias guardados bajo `'main'` ya no se leen. Hay que re-subir el Excel en staging.
+
+**2. Nueva vista: ¿Cómo va mi horario?**
+- Componente `src/components/HorarioSemanal.jsx` con grilla semanal proporcional al tiempo real (1.5px/min).
+- Línea de tiempo roja en vivo (actualiza cada 30s) mostrando la hora actual.
+- Navegación de semanas con ‹ › (solo hacia adelante desde la semana actual). Fecha en cada columna.
+- Horario de Sebastián cargado desde su Excel (`Horario_Sebastian_Beltran_2026-2027.xlsx`), incluyendo
+  celdas mergeadas: Profundización (Mar P4–P6) y Proyecto 11° (Vie P4–P6) con rowSpan correcto.
+- Barra "Buscar reemplazo" con modal (UI completa, pendiente conectar con horarios reales en BD).
+
+**3. Eventos de coordinación en el horario (tabla `schedule_events`)**
+- Nueva tabla `schedule_events` en Supabase staging con RLS (ver SQL en `supabase-staging-schema.sql`).
+- Tab "Horario" en AdminPanel: crear, editar y borrar actividades (título, descripción, fecha, hora inicio +
+  duración, alcance "Toda la escuela" vs cursos específicos con chips por grupo).
+- Los eventos se superponen en la grilla del horario con overlay teal proporcional a su duración real.
+- Si el evento cubre solo parte de un periodo, el overlay cubre exactamente esa fracción de la celda.
+- Limpieza automática: al cargar, se borran eventos con fecha anterior a hoy (fire-and-forget, solo admins).
+- Sección "Eventos de la semana" debajo de la grilla; navega con la semana visible.
+- Eventos sincronizados al calendario del Dashboard (categoría `horario`, teal).
+- Rol `director` (antes `coordinador`) puede crear/editar actividades; solo ve el tab Horario en AdminPanel.
+
+**4. Rol `coordinador` → `director`**
+- Renombrado en: `useAuth.js`, `Sidebar.jsx`, `RoleSwitcher.jsx`, `supabase-staging-schema.sql`.
+- SQL ejecutado en staging para actualizar CHECK constraint, función `is_coordinator_or_above()`,
+  política de `schedule_events` y política de `counseling_sessions`.
+- Directores ven "Administración" en el sidebar pero solo el tab Horario.
+
+**5. React Router (Fase 2.1) + Login obligatorio**
+- Instalado `react-router-dom`. Rutas reales: `/`, `/horario`, `/planes`, `/counseling`, `/enlaces`, `/admin`.
+- `src/App.jsx` refactorizado: `BrowserRouter` → `AppInner` con `useLocation`; routing por `<Routes>` y `<Route>`.
+- `src/pages/LoginPage.jsx`: pantalla completa de login con logo CSM, email/contraseña y botón show/hide.
+- `src/pages/PendingActivationPage.jsx`: pantalla para docentes con `active = false`.
+- Flujo: sin sesión → `/login`; docente inactivo → pantalla pendiente; resto → app normal.
+- `src/components/Sidebar.jsx` reescrito: usa `<Link>` y `useLocation`; sin `onNavigate`; sin botón login modal.
+- `vercel.json` ya tenía `/* → index.html`; no se necesitaron cambios para el deploy.
+- Modal `Login.jsx` ya no se usa (puede eliminarse en limpieza futura).
+
+---
+
 ## 🔜 PRÓXIMA SESIÓN — Por dónde arrancar
 
-**Prioridad: que cada escuela tenga sus propios datos.** Hoy la interfaz ya cambia por escuela, pero los datos no:
+**El login funciona. Ahora toca que cada docente vea solo sus propios datos:**
 
 ```
-[ ] A. Lesson plan por escuela: subjects y plans filtrados por school_id (tareas 3.2, 3.3).
-       - addSubject() debe guardar school_id (hoy una materia creada en staging no aparece en el Plan Semanal).
-       - savePlan() debe guardar teacher_id y school_id.
-       - Para el super_admin, usar el school_id elegido en "Ver como" (ojo: las políticas RLS de subjects
-         filtran por get_my_school_id(); habrá que permitir al super_admin ver/escribir en cualquier escuela).
-[ ] B. Enlaces de interés por escuela (DECIDIDO 21 nov): cada escuela tiene su propia lista.
-       - Hoy están en vigilancias_config id='enlaces' (lista única). Pasar a 'enlaces_<slug>' (ver 3.8)
-         o a una tabla propia con school_id.
-       - La semilla src/data/enlaces.json corresponde a High School.
-[ ] C. College Counseling: addCounselingSession() debe guardar school_id (si no, RLS rechaza el insert).
-[ ] D. Vigilancias: guardar/leer con id 'main_high_school' (tarea 3.8).
+[ ] 1. LessonPlan.jsx: mostrar solo las materias asignadas al docente (tabla teacher_subjects)
+       - Si no tiene materias asignadas: banner "El admin aún no ha asignado tus materias"
+       - Toggle "Ver todas las materias del grado" para casos excepcionales
+[ ] 2. AdminPanel: tab "Usuarios" para activar docentes y asignarles escuela + materias
+       - Lista de usuarios pendientes (active = false)
+       - Formulario: asignar school_id y materias (teacher_subjects)
+[ ] 3. Crear usuarios de prueba en staging:
+       - director@test.com (rol director, High School)
+       - docente@test.com (rol docente, High School, con materias asignadas)
+[ ] 4. Eliminar Login.jsx (modal viejo, ya no se usa)
+[ ] 5. Sidebar: reemplazar ícono genérico por inicial del nombre del usuario
 ```
 
-**Después, el orden de desarrollo del plan original sigue igual:**
-
-```
-[ ] 1. Instalar React Router y refactorizar App.jsx
-[ ] 2. Crear LoginPage.jsx (email + contraseña por ahora, Google después)
-[ ] 3. Crear AuthGuard.jsx y RoleGuard.jsx
-[ ] 4. Crear PendingActivationPage.jsx
-[~] 5. Actualizar useAuth.js  (ya tiene vista previa de rol/escuela para super_admin)
-[ ] 6. Eliminar el modal Login.jsx actual
-[ ] 7. Actualizar Sidebar con avatar y nombre del usuario
-[ ] 8. Actualizar useStore.js con queries filtradas por school_id y teacher_id  (= A, B, C)
-[ ] 9. Actualizar savePlan() para incluir teacher_id y school_id  (= A)
-[ ] 10. Actualizar LessonPlan.jsx para mostrar solo materias del docente
-```
-
-**Usuarios de prueba pendientes** (crear cuando se necesiten, en staging → Authentication → Users → Add user,
-con "Auto Confirm User", y luego asignar rol en `profiles`): `admin@test.com`, `coordinador@test.com`, `docente@test.com`.
+**Usuarios de prueba pendientes** (staging → Authentication → Users → Add user → "Auto Confirm User",
+luego asignar rol y school_id en tabla `profiles`):
+- `director@test.com` → rol `director`, school_id = High School
+- `docente@test.com`  → rol `docente`, school_id = High School, active = true
 
 ---
 
