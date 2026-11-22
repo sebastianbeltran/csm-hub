@@ -234,14 +234,15 @@ FASE 1 — Base de datos y seguridad (crítico, antes de crear cualquier cuenta)
 FASE 2 — Autenticación obligatoria y flujos de usuario
 FASE 3 — Multi-escuela y perfiles por docente
 FASE 3.5 — Builder de Horarios (admin crea y publica horarios de docentes desde la app)
-FASE 4 — Funcionalidades nuevas (admin de escuela, coordinador, gestión de usuarios)
+FASE 4 — Funcionalidades nuevas (admin de escuela, director, gestión de usuarios)
 FASE 5 — Calidad de código y robustez
+FASE 5.5 — Seguridad técnica (auditoría OWASP, rate limiting, revisión de secretos)
 FASE 6 — Performance y escalabilidad
 FASE 7 — Infraestructura y deployment
 FASE 8 — Legal y compliance (Colombia)
 FASE 9 — Documentación
-FASE 10 — Capacitación y entrega
-FASE 11 — Modelo comercial
+FASE 10 — Modelo comercial
+FASE 11 — Capacitación y entrega (ocurre una vez el cliente compra el software)
 ```
 
 ---
@@ -1237,6 +1238,61 @@ Envolver en `<Suspense fallback={<SkeletonView />}>`. Reduce el bundle inicial.
 
 ---
 
+## FASE 5.5 — SEGURIDAD TÉCNICA
+> Verificar que la app es segura antes de ponerla en manos de 80 docentes con datos institucionales reales.
+
+### 5.5.1 — Auditoría OWASP Top 10
+Revisar los riesgos más comunes en aplicaciones web:
+- **Broken Access Control:** verificar que un docente no puede leer ni modificar datos de otro (ya cubierto por RLS, pero verificar manualmente con una cuenta de prueba).
+- **Injection:** Supabase usa consultas parametrizadas — verificar que no hay concatenación de strings en queries.
+- **XSS:** revisar que no se usa `dangerouslySetInnerHTML` con contenido de usuario. Los campos de descripción en eventos/actividades deben sanitizarse si se renderizan como HTML.
+- **Security Misconfiguration:** verificar que el modo debug de Vite no está activo en producción, y que las variables de entorno correctas están en cada ambiente.
+- **Sensitive Data Exposure:** verificar que el `anon key` no tiene acceso a datos sin RLS (simular una petición directa a Supabase con solo el anon key y sin sesión).
+
+### 5.5.2 — Rate limiting
+Sin rate limiting, un atacante puede hacer miles de intentos de login o de peticiones a la API:
+- Activar **rate limiting en Supabase Auth** (Dashboard → Auth → Rate limits): limitar intentos de login, sign-up, y envío de emails.
+- Para las queries de datos, Supabase no tiene rate limiting nativo en el plan free — considerar agregar un límite en la Edge Function si se implementa alguna.
+- Vercel tiene protección básica contra DDoS en todos los planes.
+
+### 5.5.3 — Revisión del anon key y RLS
+El `VITE_SUPABASE_ANON_KEY` es visible en el bundle del frontend. Esto es normal y esperado en Supabase — la seguridad viene del RLS, no de ocultar la key. Verificar:
+- Hacer `fetch` directo a Supabase con solo el anon key (sin sesión) y confirmar que todas las tablas devuelven error 403 o `[]`.
+- Especialmente: `plans`, `profiles`, `counseling_sessions` NO deben ser legibles sin sesión.
+- Si alguna tabla devuelve datos: RLS no está activado o la política está mal.
+
+### 5.5.4 — Headers de seguridad HTTP
+(Ya detallado en tarea 7.10 — se consolida aquí como parte de la auditoría):
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY` (previene clickjacking)
+- `X-XSS-Protection: 1; mode=block`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Content-Security-Policy` básico
+
+Configurar en `vercel.json` bajo la sección `headers`.
+
+### 5.5.5 — Revisión de secretos en el bundle de producción
+Después de cada `npm run build`, verificar que el bundle NO contiene:
+- El `service_role` key de Supabase (da acceso total sin RLS — nunca debe ir al frontend).
+- Credenciales de terceros.
+
+Procedimiento: `npm run build` → abrir `dist/assets/*.js` en un editor y buscar `service_role` o el JWT del service role.
+
+### 5.5.6 — Política de sesiones
+- **JWT expiry:** aumentar de 3600s (1h) a 28800s (8h) en Supabase Auth Settings para que la sesión dure una jornada escolar sin interrupciones.
+- **Refresh tokens:** `supabase-js` los maneja automáticamente — verificar que el comportamiento en tabs inactivos es correcto.
+- **Logout en todos los dispositivos:** cuando un docente reporta pérdida de dispositivo, el admin puede revocar su sesión desde Supabase Dashboard → Auth → Users.
+
+### 5.5.7 — Logging de accesos sospechosos
+Supabase registra logs de Auth en Dashboard → Logs → Auth. Revisar periódicamente:
+- Intentos de login fallidos repetidos (posible brute force).
+- Logins desde IPs fuera de Colombia.
+- Creación masiva de usuarios.
+
+Para alertas automáticas, considerar Sentry (tarea 7.8) con una regla para errores 401/403 masivos.
+
+---
+
 ## FASE 6 — PERFORMANCE Y ESCALABILIDAD
 > Con 80 docentes concurrentes, el sistema debe responder sin degradarse.
 
@@ -1565,7 +1621,8 @@ Un diagrama ER (Entity-Relationship) de todas las tablas y sus relaciones. Puede
 
 ---
 
-## FASE 10 — CAPACITACIÓN Y ENTREGA
+## FASE 11 — CAPACITACIÓN Y ENTREGA
+> Ocurre una vez el cliente compra el software. No iniciar antes.
 
 ### 10.1 — Período de prueba piloto
 Antes del rollout masivo, hacer pruebas con un grupo reducido:
@@ -1628,7 +1685,7 @@ Antes de enviar las invitaciones a los 80 docentes, verificar:
 
 ---
 
-## FASE 11 — MODELO COMERCIAL
+## FASE 10 — MODELO COMERCIAL
 
 ### 11.1 — Definir la propuesta de valor y precio
 Recomendación de estructura de precios:
