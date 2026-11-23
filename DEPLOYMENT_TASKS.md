@@ -175,7 +175,12 @@ Dato semilla: escuela "High School" insertada en tabla `schools`.
 - [ ] Verificar en staging que guardar un plan y crear un evento funcione de punta a punta.
 - [ ] "Buscar reemplazo": conectar con `teacher_schedules` para mostrar docentes libres.
 - [ ] Probar en el navegador la sección "Otras materias" con planes reales de 2+ materias del mismo grado.
-- [ ] Probar el límite de pantallas en Primary (Ver como → Primary): bloquear al llegar a 10 h.
+- [ ] **PROBAR (pendiente: aún no hay materias creadas en Early Childhood / Primary en staging)**
+      1. Admin → Materias: crear 2–3 materias en un grado de Primary (y/o Early Childhood).
+      2. Ver como → Primary → Plan Semanal: guardar planes con pantallas en 2+ materias del mismo grado
+         hasta pasar 10 h → la casilla debe quedar bloqueada y Supabase debe rechazar el exceso.
+      3. Revisar que la barra de uso y "Ya planeado" muestren las materias correctas.
+      4. Confirmar trigger: `SELECT tgname FROM pg_trigger WHERE tgname = 'trg_check_screen_limit';`
 - [ ] ¿Límite por curso (3A/3B) en vez de por grado? Requiere que el plan sepa el curso.
 
 ---
