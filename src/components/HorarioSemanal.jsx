@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Clock, Users, X } from 'lucide-react'
+import { Clock, Users, X, CalendarX } from 'lucide-react'
+import {
+  toMin, slotMinutes, resolveClass, coveredCells, gradeColor, otherSchoolBadge, SCHOOL_ABBR_NAMES,
+} from '../lib/schoolTimetable'
+import { gradeLabel } from '../lib/schoolGrades'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PX_PER_MIN = 1.5
-const DAY_START  = 8 * 60   // 480 min from midnight
 
 const DAYS = [
   { label: 'Lunes',     short: 'LUN', js: 1 },
@@ -14,91 +17,16 @@ const DAYS = [
   { label: 'Viernes',   short: 'VIE', js: 5 },
 ]
 
-const SLOTS = [
-  { id: 'DG',       label: 'D.G',     min: 15, start: '8:00',  end: '8:15',  type: 'dg'     },
-  { id: 'P1',       label: 'P1',      min: 40, start: '8:15',  end: '8:55',  type: 'period' },
-  { id: 'P2',       label: 'P2',      min: 40, start: '8:55',  end: '9:35',  type: 'period' },
-  { id: 'recreo',   label: 'Recreo',  min: 30, start: '9:35',  end: '10:05', type: 'break'  },
-  { id: 'P3',       label: 'P3',      min: 45, start: '10:05', end: '10:50', type: 'period' },
-  { id: 'P4',       label: 'P4',      min: 45, start: '10:50', end: '11:35', type: 'period' },
-  { id: 'P5',       label: 'P5',      min: 45, start: '11:35', end: '12:20', type: 'period' },
-  { id: 'P6',       label: 'P6',      min: 45, start: '12:20', end: '13:05', type: 'period' },
-  { id: 'almuerzo', label: 'Almuerzo',min: 60, start: '13:05', end: '14:05', type: 'break'  },
-  { id: 'P7',       label: 'P7',      min: 40, start: '14:05', end: '14:45', type: 'period', noFri: true },
-  { id: 'P8',       label: 'P8',      min: 40, start: '14:45', end: '15:25', type: 'period', noFri: true },
-]
-
-const TOTAL_HEIGHT = SLOTS.reduce((s, sl) => s + Math.round(sl.min * PX_PER_MIN), 0)
-
-// span: N → la clase ocupa N periodos consecutivos (celdas mergeadas en el Excel)
-const MY_SCHEDULE = {
-  0: { // Lunes
-    P1: { label: '8B',  grade: '8',  course: '8B'  },
-    P2: { label: '7A',  grade: '7',  course: '7A',  ms: true, msTime: '8:55–9:35' },
-    P4: { label: '10B', grade: '10', course: '10B' },
-    P5: { label: '10A', grade: '10', course: '10A' },
-    P8: { label: '7B',  grade: '7',  course: '7B',  ms: true, msTime: '2:40–3:20' },
-  },
-  1: { // Martes — Profundización abarca P4+P5+P6 (celdas mergeadas)
-    P2: { label: '7B', grade: '7', course: '7B', ms: true, msTime: '8:55–9:35' },
-    P4: { label: 'Profundización', grade: 'special', course: 'especial', span: 3, endTime: '13:05' },
-  },
-  2: { // Miércoles
-    P3: { label: '10B',     grade: '10', course: '10B' },
-    P4: { label: 'Proy 9B', grade: '9',  course: '9B'  },
-    P5: { label: 'Proy 9A', grade: '9',  course: '9A'  },
-    P8: { label: '8A',      grade: '8',  course: '8A',  ms: true, msTime: '2:40–3:20' },
-  },
-  3: { // Jueves
-    P1: { label: 'Proy 10A', grade: '10', course: '10A' },
-    P3: { label: '9A',       grade: '9',  course: '9A'  },
-    P4: { label: 'Proy 10B', grade: '10', course: '10B' },
-    P5: { label: '9B',       grade: '9',  course: '9B'  },
-    P6: { label: '10A',      grade: '10', course: '10A' },
-  },
-  4: { // Viernes — Proyecto 11° abarca P4+P5+P6 (celdas mergeadas)
-    P3: { label: '7A',           grade: '7',  course: '7A',  ms: true, msTime: '10:10–10:50' },
-    P4: { label: 'Proyecto 11°', grade: '11', course: '11°', span: 3, endTime: '13:00' },
-  },
-}
-
-// Celdas "tapadas" por un span — no se renderizan como celdas independientes
-const COVERED = new Set()
-for (let dayIdx = 0; dayIdx <= 4; dayIdx++) {
-  for (const [slotId, cls] of Object.entries(MY_SCHEDULE[dayIdx] || {})) {
-    const span = cls.span || 1
-    if (span > 1) {
-      const startRowIdx = SLOTS.findIndex(s => s.id === slotId)
-      for (let i = 1; i < span; i++) {
-        if (SLOTS[startRowIdx + i]) COVERED.add(`${dayIdx}-${SLOTS[startRowIdx + i].id}`)
-      }
-    }
-  }
-}
-
-const GRADE = {
-  '7':     { bg: '#ecfdf5', accent: '#10b981', text: '#065f46', light: '#d1fae5' },
-  '8':     { bg: '#eff6ff', accent: '#3b82f6', text: '#1e3a5f', light: '#dbeafe' },
-  '9':     { bg: '#f5f3ff', accent: '#8b5cf6', text: '#3b0764', light: '#ede9fe' },
-  '10':    { bg: '#fff7ed', accent: '#f97316', text: '#7c2d12', light: '#fed7aa' },
-  '11':    { bg: '#fff1f2', accent: '#f43f5e', text: '#881337', light: '#ffe4e6' },
-  special: { bg: '#faf5ff', accent: '#a855f7', text: '#581c87', light: '#f3e8ff' },
-}
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const slotH = (s) => Math.round(s.min * PX_PER_MIN)
+const slotH = (s) => Math.round(slotMinutes(s) * PX_PER_MIN)
 
-function findActiveSlot(nowMins) {
-  let acc = DAY_START
-  for (let i = 0; i < SLOTS.length; i++) {
-    if (nowMins >= acc && nowMins < acc + SLOTS[i].min) return i
-    acc += SLOTS[i].min
-  }
-  return -1
+function findActiveSlot(slots, nowMins) {
+  return slots.findIndex(s => nowMins >= toMin(s.start) && nowMins < toMin(s.end))
 }
 
-const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+// Celda del horario ya resuelta (label, grade, span)
+const classAt = (schedule, dayIdx, slotId) => resolveClass(schedule?.[dayIdx]?.[slotId])
 
 // Fecha local como 'YYYY-MM-DD' sin conversión UTC
 const localDateStr = (d) =>
@@ -116,31 +44,31 @@ function getWeekDates(refDate) {
 }
 
 // Cursos que el teacher imparte en un día específico
-function getTeacherCoursesForDay(dayIdx) {
+function getTeacherCoursesForDay(schedule, dayIdx) {
   return new Set(
-    Object.values(MY_SCHEDULE[dayIdx] || {}).map(c => c.course).filter(Boolean)
+    Object.values(schedule?.[dayIdx] || {}).map(c => c?.course).filter(Boolean)
   )
 }
 
 // Si el teacher es relevante para este evento (por cursos o "toda la escuela")
-function isEventRelevant(evt, dayIdx) {
+function isEventRelevant(evt, dayIdx, schedule) {
   if (!evt.target_courses?.length) return true          // toda la escuela
-  const teacherCourses = getTeacherCoursesForDay(dayIdx)
+  const teacherCourses = getTeacherCoursesForDay(schedule, dayIdx)
   return evt.target_courses.some(c => teacherCourses.has(c))
 }
 
 // Eventos relevantes para el teacher en un slot (spanCount cubre celdas mergeadas)
-function getEventsForSlot(scheduleEvents, weekDates, dayIdx, slot, spanCount = 1) {
+function getEventsForSlot(slots, schedule, scheduleEvents, weekDates, dayIdx, slot, spanCount = 1) {
   if (!scheduleEvents?.length) return []
   const dateStr  = weekDates[dayIdx]
-  const slotIdx  = SLOTS.findIndex(s => s.id === slot.id)
-  const endSlot  = SLOTS[slotIdx + spanCount - 1] || slot
+  const slotIdx  = slots.findIndex(s => s.id === slot.id)
+  const endSlot  = slots[slotIdx + spanCount - 1] || slot
   const sStart   = toMin(slot.start)
   const sEnd     = toMin(endSlot.end)
 
   return scheduleEvents.filter(evt => {
     if (evt.date !== dateStr) return false
-    if (!isEventRelevant(evt, dayIdx)) return false
+    if (!isEventRelevant(evt, dayIdx, schedule)) return false
     const eStart = toMin(evt.time_start)
     const eEnd   = toMin(evt.time_end)
     return eStart < sEnd && eEnd > sStart
@@ -148,18 +76,22 @@ function getEventsForSlot(scheduleEvents, weekDates, dayIdx, slot, spanCount = 1
 }
 
 // Todos los eventos de la semana relevantes para este teacher
-function getWeekEvents(scheduleEvents, weekDates) {
+function getWeekEvents(schedule, scheduleEvents, weekDates) {
   if (!scheduleEvents?.length) return []
-  return scheduleEvents.filter((evt, _, arr) => {
+  return scheduleEvents.filter((evt) => {
     const dayIdx = weekDates.indexOf(evt.date)
     if (dayIdx < 0) return false
-    return isEventRelevant(evt, dayIdx)
+    return isEventRelevant(evt, dayIdx, schedule)
   }).sort((a, b) => a.date.localeCompare(b.date) || a.time_start.localeCompare(b.time_start))
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function HorarioSemanal({ scheduleEvents = [] }) {
+export default function HorarioSemanal({ scheduleEvents = [], timetable = null, schedule = null, schoolSlug = null }) {
+  const slots    = timetable?.slots ?? []
+  const covered  = coveredCells(slots, schedule)
+  const hasSlots = slots.length > 0
+  const hasClasses = Object.values(schedule || {}).some(day => Object.keys(day || {}).length > 0)
   const [now,          setNow]          = useState(new Date())
   const [weekOffset,   setWeekOffset]   = useState(0)   // 0 = semana actual, 1 = próxima, -1 = anterior
   const [showSubModal, setShowSubModal] = useState(false)
@@ -172,27 +104,31 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
   const jsDay    = now.getDay()
   const todayIdx = jsDay >= 1 && jsDay <= 5 ? jsDay - 1 : -1
   const nowMins  = now.getHours() * 60 + now.getMinutes()
-  const totalScheduleMins = SLOTS.reduce((s, sl) => s + sl.min, 0)
+  // Posición vertical (px) de cada franja
+  const slotTops = slots.reduce((acc, sl, i) => [...acc, i === 0 ? 0 : acc[i - 1] + slotH(slots[i - 1])], [])
+  const totalHeight = slots.reduce((sum, sl) => sum + slotH(sl), 0)
 
-  // La línea de tiempo solo se muestra en la semana actual
+  // La línea de tiempo solo se muestra en la semana actual, dentro de una franja del timbre
   const isCurrentWeek = weekOffset === 0
-  const isSchoolTime  = isCurrentWeek && todayIdx >= 0 && nowMins >= DAY_START && nowMins < DAY_START + totalScheduleMins
-  const timelineTop   = Math.round((nowMins - DAY_START) * PX_PER_MIN)
-  const activeSlotIdx = isSchoolTime ? findActiveSlot(nowMins) : -1
-  const activeSlot    = activeSlotIdx >= 0 ? SLOTS[activeSlotIdx] : null
+  const activeSlotIdx = isCurrentWeek && todayIdx >= 0 ? findActiveSlot(slots, nowMins) : -1
+  const isSchoolTime  = activeSlotIdx >= 0
+  const activeSlot    = isSchoolTime ? slots[activeSlotIdx] : null
+  const timelineTop   = isSchoolTime
+    ? Math.round(slotTops[activeSlotIdx] + (nowMins - toMin(activeSlot.start)) * PX_PER_MIN)
+    : 0
 
   // Fecha de referencia desplazada por weekOffset
   const refDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + weekOffset * 7)
 
   const timeStr    = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
   const weekDates  = getWeekDates(refDate)
-  const weekEvents  = getWeekEvents(scheduleEvents, weekDates)
+  const weekEvents  = getWeekEvents(schedule, scheduleEvents, weekDates)
   const todayStr    = localDateStr(new Date())
   const todayJsDay  = new Date().getDay()
   const todayRealIdx = todayJsDay >= 1 && todayJsDay <= 5 ? todayJsDay - 1 : -1
   const todayEvents = scheduleEvents.filter(evt => {
     if (evt.date !== todayStr) return false
-    return todayRealIdx >= 0 && isEventRelevant(evt, todayRealIdx)
+    return todayRealIdx >= 0 && isEventRelevant(evt, todayRealIdx, schedule)
   }).sort((a, b) => a.time_start.localeCompare(b.time_start))
 
   // Etiqueta de la semana mostrada
@@ -206,7 +142,18 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
     return `${fmtDate(mon)} – ${fmtDate(fri)}`
   })()
 
-  const gridTemplateRows    = SLOTS.map(s => `${slotH(s)}px`).join(' ')
+  const gridTemplateRows    = slots.map(s => `${slotH(s)}px`).join(' ')
+
+  // Grados presentes en el horario (para la leyenda)
+  const legendGrades = [...new Set(
+    [0, 1, 2, 3, 4].flatMap(d => Object.keys(schedule?.[d] || {}).map(id => classAt(schedule, d, id)?.grade)).filter(Boolean)
+  )].sort((a, b) => (Number(a) || -1) - (Number(b) || -1))
+  const legendBadges = [...new Set(
+    [0, 1, 2, 3, 4].flatMap(d => Object.keys(schedule?.[d] || {}).map(id => {
+      const c = classAt(schedule, d, id)
+      return c ? otherSchoolBadge(c.grade, schoolSlug) : null
+    })).filter(Boolean)
+  )]
   const gridTemplateColumns = '56px repeat(5, 1fr)'
 
   return (
@@ -255,7 +202,22 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
         </div>
       </div>
 
+      {/* Sin timbre / sin horario ─────────────────────────────────────────── */}
+      {!hasSlots && (
+        <div className="bg-white rounded-2xl border border-slate-200 py-14 px-6 text-center">
+          <CalendarX size={28} className="text-slate-300 mx-auto mb-3" />
+          <p className="font-semibold text-slate-600">Tu escuela aún no tiene el timbre configurado</p>
+          <p className="text-sm text-slate-400 mt-1">El admin de la escuela lo configura en Panel de Administración → Timbre y horarios.</p>
+        </div>
+      )}
+      {hasSlots && !hasClasses && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-sm text-amber-700">
+          El admin de tu escuela aún no ha cargado tu horario de clases. Mientras tanto ves el timbre y los eventos.
+        </div>
+      )}
+
       {/* Grid ───────────────────────────────────────────────────────────── */}
+      {hasSlots && (
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
 
         {/* Day headers */}
@@ -287,13 +249,13 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
           {/* Grid body — CSS Grid con soporte de rowSpan */}
           <div
             className="relative overflow-x-auto"
-            style={{ minWidth: 500, height: TOTAL_HEIGHT }}
+            style={{ minWidth: 500, height: totalHeight }}
           >
             <div
               className="absolute inset-0"
               style={{ display: 'grid', gridTemplateColumns, gridTemplateRows }}
             >
-              {SLOTS.map((slot, rowIdx) => {
+              {slots.map((slot, rowIdx) => {
                 const isActiveRow = rowIdx === activeSlotIdx
 
                 // ── Time label ──────────────────────────────────────────
@@ -329,13 +291,15 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
                   const key = `${slot.id}-${dayIdx}`
 
                   // Saltear celdas tapadas por un span anterior
-                  if (COVERED.has(`${dayIdx}-${slot.id}`)) return null
+                  if (covered.has(`${dayIdx}-${slot.id}`)) return null
 
                   const isToday     = dayIdx === todayIdx
                   const isFriNoSlot = dayIdx === 4 && slot.noFri
-                  const cls         = MY_SCHEDULE[dayIdx]?.[slot.id]
+                  const cls         = classAt(schedule, dayIdx, slot.id)
                   const span        = cls?.span || 1
-                  const gs          = cls ? GRADE[cls.grade] : null
+                  const gs          = cls ? gradeColor(cls.grade) : null
+                  const badge       = cls ? otherSchoolBadge(cls.grade, schoolSlug) : null
+                  const spanEnd     = slots[rowIdx + span - 1] || slot
 
                   // ── DG band ──
                   if (slot.type === 'dg') {
@@ -369,7 +333,7 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
                     )
                   }
 
-                  // ── Viernes sin clase (P7, P8) ──
+                  // ── Viernes sin clase (franjas marcadas "no hay los viernes") ──
                   if (isFriNoSlot) {
                     return (
                       <div
@@ -384,7 +348,7 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
 
                   // ── Celda de clase (normal o con span) ──
                   const gridRow   = span > 1 ? `${rowIdx + 1} / ${rowIdx + 1 + span}` : rowIdx + 1
-                  const slotEvts  = getEventsForSlot(scheduleEvents, weekDates, dayIdx, slot, span)
+                  const slotEvts  = getEventsForSlot(slots, schedule, scheduleEvents, weekDates, dayIdx, slot, span)
 
                   return (
                     <div
@@ -404,15 +368,16 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
                             <span className="text-xs font-bold leading-tight" style={{ color: gs.text }}>
                               {cls.label}
                             </span>
-                            {cls.ms && (
+                            {badge && (
                               <span className="text-[8px] font-bold px-1 py-px rounded shrink-0 leading-tight"
-                                style={{ backgroundColor: gs.light, color: gs.accent }}>MS</span>
+                                title={SCHOOL_ABBR_NAMES[badge]}
+                                style={{ backgroundColor: gs.light, color: gs.accent }}>{badge}</span>
                             )}
                           </div>
                           {span > 1 && (
                             <div className="flex items-center gap-1 mt-1 flex-wrap">
                               {Array.from({ length: span }, (_, i) => {
-                                const s = SLOTS[rowIdx + i]
+                                const s = slots[rowIdx + i]
                                 return s ? (
                                   <span key={s.id} className="text-[9px] font-bold px-1.5 py-0.5 rounded-md"
                                     style={{ backgroundColor: gs.light, color: gs.accent }}>{s.label}</span>
@@ -421,8 +386,8 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
                             </div>
                           )}
                           <div className="mt-auto">
-                            {cls.msTime && <span className="text-[8px] opacity-50 leading-tight block" style={{ color: gs.text }}>{cls.msTime}</span>}
-                            {span > 1 && cls.endTime && <span className="text-[9px] opacity-60 leading-tight block" style={{ color: gs.text }}>{slot.start} – {cls.endTime}</span>}
+                            {cls.note && <span className="text-[8px] opacity-50 leading-tight block" style={{ color: gs.text }}>{cls.note}</span>}
+                            {span > 1 && <span className="text-[9px] opacity-60 leading-tight block" style={{ color: gs.text }}>{slot.start} – {spanEnd.end}</span>}
                           </div>
                         </div>
                       )}
@@ -430,8 +395,7 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
                       {/* Eventos superpuestos — posicionados proporcionalmente dentro de la celda */}
                       {slotEvts.map(evt => {
                         const slotStart  = toMin(slot.start)
-                        const spanEndSlt = SLOTS[SLOTS.findIndex(s => s.id === slot.id) + span - 1] || slot
-                        const slotEnd    = toMin(spanEndSlt.end)
+                        const slotEnd    = toMin(spanEnd.end)
                         const slotDur    = slotEnd - slotStart
                         const eStart     = toMin(evt.time_start)
                         const eEnd       = toMin(evt.time_end)
@@ -511,11 +475,14 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
         </div>
       </div>
 
+      )}
+
       {/* Legend ─────────────────────────────────────────────────────────── */}
+      {hasSlots && (legendGrades.length > 0 || isSchoolTime) && (
       <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3 flex flex-wrap gap-3 items-center">
         <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wide mr-1">Grados</span>
-        {[['7°','7'],['8°','8'],['9°','9'],['10°','10'],['11°','11'],['Especial','special']].map(([lbl, g]) => {
-          const c = GRADE[g]
+        {legendGrades.map(g => [g === 'special' ? 'Otra' : gradeLabel(g), g]).map(([lbl, g]) => {
+          const c = gradeColor(g)
           return (
             <div key={g} className="flex items-center gap-1">
               <div className="w-3 h-3 rounded-sm border-l-2" style={{ backgroundColor: c.bg, borderLeftColor: c.accent }} />
@@ -523,7 +490,9 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
             </div>
           )
         })}
-        <span className="text-xs text-slate-300 ml-1">· MS = Middle School</span>
+        {legendBadges.map(b => (
+          <span key={b} className="text-xs text-slate-300 ml-1">· {b} = {SCHOOL_ABBR_NAMES[b]}</span>
+        ))}
         {isSchoolTime && (
           <div className="flex items-center gap-1 ml-auto">
             <div className="w-4 h-px bg-red-400" />
@@ -532,6 +501,7 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
           </div>
         )}
       </div>
+      )}
 
       {/* Eventos de la semana ───────────────────────────────────────────── */}
       {weekEvents.length > 0 && (
@@ -573,7 +543,10 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
       {showSubModal && (
         <SubstitutionModal
           onClose={() => setShowSubModal(false)}
-          todayIdx={todayIdx}
+          slots={slots}
+          schedule={schedule}
+          covered={covered}
+          schoolSlug={schoolSlug}
         />
       )}
     </div>
@@ -582,7 +555,7 @@ export default function HorarioSemanal({ scheduleEvents = [] }) {
 
 // ─── Substitution Modal ────────────────────────────────────────────────────────
 
-function SubstitutionModal({ onClose, todayIdx }) {
+function SubstitutionModal({ onClose, slots, schedule, covered, schoolSlug }) {
   const [date,          setDate]          = useState(() => new Date().toISOString().split('T')[0])
   const [selectedSlots, setSelectedSlots] = useState(new Set())
   const [searched,      setSearched]      = useState(false)
@@ -592,24 +565,21 @@ function SubstitutionModal({ onClose, todayIdx }) {
 
   // Para reemplazos siempre por hora individual — expandir spans en periodos sueltos
   const classesForDate = dateDayIdx >= 0
-    ? SLOTS.filter(s => {
+    ? slots.filter(s => {
         if (s.type !== 'period') return false
         if (s.noFri && dateDayIdx === 4) return false
-        if (COVERED.has(`${dateDayIdx}-${s.id}`)) return false
-        const cls = MY_SCHEDULE[dateDayIdx]?.[s.id]
-        if (!cls) return false
-        // Expandir spans: si tiene span, generar entradas para cada periodo cubierto
-        return true
+        if (covered.has(`${dateDayIdx}-${s.id}`)) return false
+        return !!classAt(schedule, dateDayIdx, s.id)
       })
     : []
 
   // Generar lista plana de periodos (1 por hora, expandiendo spans)
   const flatPeriods = []
   for (const slot of classesForDate) {
-    const cls  = MY_SCHEDULE[dateDayIdx]?.[slot.id]
+    const cls  = classAt(schedule, dateDayIdx, slot.id)
     const span = cls?.span || 1
     for (let i = 0; i < span; i++) {
-      const s = SLOTS[SLOTS.findIndex(x => x.id === slot.id) + i]
+      const s = slots[slots.findIndex(x => x.id === slot.id) + i]
       if (s) flatPeriods.push({ slot: s, cls, rootSlotId: slot.id })
     }
   }
@@ -661,8 +631,9 @@ function SubstitutionModal({ onClose, todayIdx }) {
             </label>
             <div className="space-y-1.5">
               {flatPeriods.map(({ slot, cls }) => {
-                const gs  = GRADE[cls.grade]
-                const sel = selectedSlots.has(slot.id)
+                const gs    = gradeColor(cls.grade)
+                const badge = otherSchoolBadge(cls.grade, schoolSlug)
+                const sel   = selectedSlots.has(slot.id)
                 return (
                   <button
                     key={slot.id}
@@ -679,7 +650,7 @@ function SubstitutionModal({ onClose, todayIdx }) {
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-400">{slot.label}</span>
                         <span className="text-sm font-semibold text-slate-800 truncate">{cls.label}</span>
-                        {cls.ms && <span className="text-[8px] font-bold px-1 py-px rounded shrink-0" style={{ backgroundColor: gs.light, color: gs.accent }}>MS</span>}
+                        {badge && <span className="text-[8px] font-bold px-1 py-px rounded shrink-0" style={{ backgroundColor: gs.light, color: gs.accent }}>{badge}</span>}
                       </div>
                       <span className="text-xs text-slate-400">{slot.start} – {slot.end}</span>
                     </div>
@@ -708,10 +679,10 @@ function SubstitutionModal({ onClose, todayIdx }) {
           <div className="space-y-3">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Disponibilidad por hora</p>
             {[...selectedSlots].map(slotId => {
-              const slot = SLOTS.find(s => s.id === slotId)
+              const slot = slots.find(s => s.id === slotId)
               const fp   = flatPeriods.find(p => p.slot.id === slotId)
               if (!slot || !fp) return null
-              const gs = GRADE[fp.cls.grade]
+              const gs = gradeColor(fp.cls.grade)
               return (
                 <div key={slotId} className="rounded-xl border border-slate-200 overflow-hidden">
                   <div className="flex items-center gap-2 px-3 py-2" style={{ backgroundColor: gs.bg }}>

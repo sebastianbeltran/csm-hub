@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { Plus, Trash2, Calendar, BookOpen, Pencil, X, Eye, Upload, CheckCircle, AlertCircle, LogIn, ShieldAlert, Link2, ArrowUp, ArrowDown, ExternalLink, CalendarClock } from 'lucide-react'
+import { Plus, Trash2, Calendar, BookOpen, Pencil, X, Eye, Upload, CheckCircle, AlertCircle, LogIn, ShieldAlert, Link2, ArrowUp, ArrowDown, ExternalLink, CalendarClock, Bell } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { CATEGORY_STYLES } from '../data/constants'
@@ -7,6 +7,7 @@ import { parseVigilanciaExcel } from '../lib/parseVigilancias'
 import { hostOf } from '../lib/links'
 import { getSchoolGrades, gradeLabel } from '../lib/schoolGrades'
 import seedLinks from '../data/enlaces.json'
+import TimetableAdmin from './TimetableAdmin'
 
 const PRIORITIES = [
   { value: 'high',   label: 'Alta'  },
@@ -15,7 +16,7 @@ const PRIORITIES = [
 ]
 const emptyEvent = { title: '', description: '', date: '', category: 'academico', priority: 'medium' }
 
-export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, scheduleEvents, onAddScheduleEvent, onUpdateScheduleEvent, onDeleteScheduleEvent, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias = true, schoolSlug, role, onRequestLogin }) {
+export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, scheduleEvents, onAddScheduleEvent, onUpdateScheduleEvent, onDeleteScheduleEvent, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias = true, schoolSlug, role, onRequestLogin, timetable, onSaveTimetable, onListTeachers, onLoadTeacherSchedule, onSaveTeacherSchedule }) {
   if (!role) return <LoginRequired onRequestLogin={onRequestLogin} />
   if (!['admin', 'super_admin', 'director'].includes(role)) return <AccessDenied />
 
@@ -31,6 +32,8 @@ export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent
       showVigilancias={showVigilancias}
       schoolSlug={schoolSlug}
       role={role}
+      timetable={timetable} onSaveTimetable={onSaveTimetable}
+      onListTeachers={onListTeachers} onLoadTeacherSchedule={onLoadTeacherSchedule} onSaveTeacherSchedule={onSaveTeacherSchedule}
     />
   )
 }
@@ -69,7 +72,7 @@ function AccessDenied() {
 }
 
 /* ─── Admin Content ──────────────────────────────────── */
-function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, scheduleEvents, onAddScheduleEvent, onUpdateScheduleEvent, onDeleteScheduleEvent, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias, schoolSlug, role }) {
+function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, scheduleEvents, onAddScheduleEvent, onUpdateScheduleEvent, onDeleteScheduleEvent, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias, schoolSlug, role, timetable, onSaveTimetable, onListTeachers, onLoadTeacherSchedule, onSaveTeacherSchedule }) {
   const isDirector = role === 'director'
   const [selectedTab, setTab] = useState(isDirector ? 'horario' : 'events')
   const tab = selectedTab === 'vigilancias' && !showVigilancias ? 'events' : selectedTab
@@ -79,13 +82,19 @@ function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEve
       <div className="flex gap-2 bg-white border border-slate-200 rounded-2xl p-1.5 w-fit max-w-full overflow-x-auto">
         {!isDirector && <TabBtn active={tab === 'events'}   onClick={() => setTab('events')}   icon={<Calendar size={14} />}     label="Calendario"  />}
         <TabBtn active={tab === 'horario'}     onClick={() => setTab('horario')}     icon={<CalendarClock size={14} />} label="Horario"     />
+        {!isDirector && <TabBtn active={tab === 'timbre'} onClick={() => setTab('timbre')} icon={<Bell size={14} />} label="Timbre y horarios" />}
         {!isDirector && <TabBtn active={tab === 'subjects'} onClick={() => setTab('subjects')} icon={<BookOpen size={14} />}     label="Materias"    />}
         {!isDirector && showVigilancias && <TabBtn active={tab === 'vigilancias'} onClick={() => setTab('vigilancias')} icon={<Eye size={14} />} label="Vigilancias" />}
         {!isDirector && <TabBtn active={tab === 'enlaces'}  onClick={() => setTab('enlaces')}  icon={<Link2 size={14} />}        label="Enlaces"     />}
       </div>
 
       {tab === 'events'      && <EventsTab events={events} onAdd={onAddEvent} onUpdate={onUpdateEvent} onDelete={onDeleteEvent} />}
-      {tab === 'horario'     && <ScheduleEventsTab scheduleEvents={scheduleEvents ?? []} onAdd={onAddScheduleEvent} onUpdate={onUpdateScheduleEvent} onDelete={onDeleteScheduleEvent} />}
+      {tab === 'horario'     && <ScheduleEventsTab scheduleEvents={scheduleEvents ?? []} courses={timetable?.courses ?? []} onAdd={onAddScheduleEvent} onUpdate={onUpdateScheduleEvent} onDelete={onDeleteScheduleEvent} />}
+      {tab === 'timbre'      && (
+        <TimetableAdmin key={schoolSlug ?? 'none'}
+          timetable={timetable} schoolSlug={schoolSlug} onSaveTimetable={onSaveTimetable}
+          onListTeachers={onListTeachers} onLoadTeacherSchedule={onLoadTeacherSchedule} onSaveTeacherSchedule={onSaveTeacherSchedule} />
+      )}
       {tab === 'subjects'    && <SubjectsTab schoolSlug={schoolSlug} subjects={subjects} onAdd={onAddSubject} onDelete={onDeleteSubject} />}
       {tab === 'vigilancias' && <ViglanciasTab onSave={onSaveVigilancias} onLoad={onLoadVigilancias} />}
       {tab === 'enlaces'     && <EnlacesTab links={links} onSave={onSaveLinks} />}
@@ -579,8 +588,6 @@ function EnlacesTab({ links, onSave }) {
 }
 
 /* ─── Schedule Events Tab ────────────────────────────── */
-const COURSE_GROUPS = ['7A', '7B', '8A', '8B', '9A', '9B', '10A', '10B', '11°']
-
 const DURATIONS = [
   { label: '15 min', value: 15 },
   { label: '30 min', value: 30 },
@@ -600,7 +607,7 @@ const addMinutes = (time, mins) => {
 
 const emptySchedEvt = { title: '', description: '', date: '', time_start: '', duration: 45, target_courses: [] }
 
-function ScheduleEventsTab({ scheduleEvents, onAdd, onUpdate, onDelete }) {
+function ScheduleEventsTab({ scheduleEvents, courses, onAdd, onUpdate, onDelete }) {
   const [form,       setForm]       = useState(emptySchedEvt)
   const [allSchool,  setAllSchool]  = useState(true)
   const [editingId,  setEditingId]  = useState(null)
@@ -734,7 +741,10 @@ function ScheduleEventsTab({ scheduleEvents, onAdd, onUpdate, onDelete }) {
                 <>
                   <p className="text-[11px] text-slate-400 mb-2">Solo aparece a los profesores que dictan estos cursos.</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {COURSE_GROUPS.map(c => {
+                    {courses.length === 0 && (
+                      <p className="text-xs text-slate-400">Esta escuela aún no tiene cursos. Agrégalos en la pestaña “Timbre y horarios”.</p>
+                    )}
+                    {courses.map(c => {
                       const sel = form.target_courses.includes(c)
                       return (
                         <button key={c} type="button" onClick={() => toggleCourse(c)}

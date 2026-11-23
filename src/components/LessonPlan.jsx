@@ -161,7 +161,7 @@ const exportToPDF = (filteredPlans, title, subtitle, subjectsList, groupBySubjec
   }
 }
 
-export default function LessonPlan({ plans, subjects, onSave, schoolSlug }) {
+export default function LessonPlan({ plans, subjects, onSave, schoolSlug, userId }) {
   const grades = getSchoolGrades(schoolSlug)
   const [selectedGrade, setGrade] = useState(grades[0])
   // Si cambia la escuela y el grado elegido ya no existe, usar el primero de la escuela
@@ -171,6 +171,13 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug }) {
   const [form, setForm]           = useState(emptyForm)
   const [showRef, setShowRef]     = useState(true)
   const [saved, setSaved]         = useState(false)
+  const [saveError, setSaveError] = useState(false)
+
+  // Plan de una materia/semana: primero el propio; si no hay, uno sin dueño (datos migrados)
+  const findPlan = (sid, ws) => {
+    const matches = plans.filter(p => p.subjectId === sid && p.weekStart === ws)
+    return matches.find(p => p.teacher_id === userId) ?? matches.find(p => !p.teacher_id) ?? null
+  }
   const [showExport, setShowExport] = useState(false)
 
   const gradeSubjects = subjects.filter(s => s.grade === grade)
@@ -184,7 +191,7 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug }) {
   // Load plan when subject/week changes
   useEffect(() => {
     if (!subjectId) return
-    const existing = plans.find(p => p.id === `${subjectId}_${weekStart}`)
+    const existing = findPlan(subjectId, weekStart)
     setForm(existing ? {
       actividades:       existing.actividades       || '',
       evaluacion:        existing.evaluacion        || [],
@@ -195,14 +202,15 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug }) {
       conexionProyecto:  existing.conexionProyecto  || '',
       observaciones:     existing.observaciones     || '',
     } : emptyForm)
-  }, [subjectId, weekStart, plans])
+  }, [subjectId, weekStart, plans, userId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const navWeek = (dir) => setWeekStart(getMonday(addWeeks(parseISO(weekStart), dir)))
   const setField = (f, v) => setForm(p => ({ ...p, [f]: v }))
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!subjectId) return
-    onSave({ ...form, id: `${subjectId}_${weekStart}`, subjectId, grade, weekStart, savedAt: new Date().toISOString() })
+    const ok = await onSave({ ...form, subjectId, grade, weekStart })
+    if (!ok) { setSaveError(true); setTimeout(() => setSaveError(false), 4000); return }
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
@@ -239,7 +247,7 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug }) {
 
   const refEntries = [-2, -1].map(offset => {
     const ws = getMonday(addWeeks(parseISO(weekStart), offset))
-    return { ws, entry: plans.find(p => p.id === `${subjectId}_${ws}`) }
+    return { ws, entry: findPlan(subjectId, ws) }
   })
 
   return (
@@ -329,9 +337,9 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug }) {
           </div>
           <button onClick={handleSave} disabled={!subjectId}
             className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-              saved ? 'bg-emerald-600 text-white' : 'bg-green-700 text-white hover:bg-green-800'
+              saved ? 'bg-emerald-600 text-white' : saveError ? 'bg-red-600 text-white' : 'bg-green-700 text-white hover:bg-green-800'
             }`}>
-            {saved ? <><CheckCircle size={14} /> Guardado</> : <><Save size={14} /> Guardar</>}
+            {saved ? <><CheckCircle size={14} /> Guardado</> : saveError ? 'No se pudo guardar' : <><Save size={14} /> Guardar</>}
           </button>
         </div>
       </div>
@@ -450,9 +458,9 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug }) {
             </Field>
             <div className="flex justify-end pt-2 border-t border-slate-100">
               <button onClick={handleSave} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                saved ? 'bg-emerald-600 text-white' : 'bg-green-700 text-white hover:bg-green-800'
+                saved ? 'bg-emerald-600 text-white' : saveError ? 'bg-red-600 text-white' : 'bg-green-700 text-white hover:bg-green-800'
               }`}>
-                {saved ? <><CheckCircle size={15} /> Guardado correctamente</> : <><Save size={15} /> Guardar plan semanal</>}
+                {saved ? <><CheckCircle size={15} /> Guardado correctamente</> : saveError ? 'No se pudo guardar — intenta de nuevo' : <><Save size={15} /> Guardar plan semanal</>}
               </button>
             </div>
           </div>

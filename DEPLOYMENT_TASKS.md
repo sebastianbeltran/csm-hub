@@ -128,6 +128,33 @@ Dato semilla: escuela "High School" insertada en tabla `schools`.
 
 ---
 
+## ✅ PROGRESO — SESIÓN 23 NOV 2026 (desde el Mac)
+
+**Horario y lesson plan por escuela**
+- Timbre (periodos/descansos) y cursos **por escuela** en `vigilancias_config` id `horario_<slug>` (`src/lib/schoolTimetable.js`).
+- Horario de clases **por docente** en tabla nueva `teacher_schedules` (lo carga el admin de cada escuela).
+- `HorarioSemanal.jsx` ya no tiene nada fijo en el código: usa el timbre de la escuela + el horario del usuario.
+  Si un curso es de otra escuela se marca con su sigla (EC/PS/MS/HS). Avisos si no hay timbre u horario.
+- Admin → pestaña nueva **"Timbre y horarios"** (`src/components/TimetableAdmin.jsx`): editar timbre + cursos,
+  elegir docente y asignar curso a cada periodo. Admin → Horario usa los cursos de la escuela (antes lista fija).
+- "Ver como" otra escuela: materias, planes, eventos y eventos de horario se filtran por la escuela activa.
+- 🐛 Corregido: `savePlan` enviaba id de texto + campos camelCase a una tabla con id UUID → no guardaba.
+  Ahora 1 plan por docente + materia + semana, y el botón avisa si falla.
+- 🐛 Corregido: `addEvent` enviaba `Date.now()` como id UUID → no guardaba. Ahora guarda `school_id`.
+- SQL ejecutado en staging: `supabase-migrations/2026-11-23_horarios_por_escuela.sql`
+  (tabla `teacher_schedules` + RLS, políticas `subjects_select_super_admin` / `events_select_super_admin`,
+  timbre de High School y horario de jbeltran2).
+- Revisado por Sebastián en el navegador: se ve bien.
+
+**Pendientes de esta sesión**
+- [ ] Cargar el timbre y los cursos de Early Childhood, Primary y Middle School (faltan los datos reales).
+- [ ] Cargar los horarios de los demás docentes (cuando existan sus cuentas y tengamos sus horarios).
+- [ ] Probar con un usuario docente/admin real de otra escuela (no solo "Ver como").
+- [ ] Verificar en staging que guardar un plan y crear un evento funcione de punta a punta.
+- [ ] "Buscar reemplazo": conectar con `teacher_schedules` para mostrar docentes libres.
+
+---
+
 ## 🔜 PRÓXIMA SESIÓN — Por dónde arrancar
 
 **El login funciona. Ahora toca que cada docente vea solo sus propios datos:**

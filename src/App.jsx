@@ -64,6 +64,8 @@ function AppInner() {
   const schoolSlug = userId ? (schools.find(s => s.id === schoolId)?.slug ?? null) : null
 
   const { events, plans, subjects, counselingSessions, scheduleEvents, links, loading, error,
+    timetable, mySchedule,
+    saveTimetable, listSchoolTeachers, loadTeacherSchedule, saveTeacherSchedule,
     saveLinks,
     addEvent, updateEvent, deleteEvent,
     savePlan,
@@ -161,6 +163,8 @@ function AppInner() {
       schoolSlug={schoolSlug}
       role={role}
       onRequestLogin={() => {}}
+      timetable={timetable} onSaveTimetable={saveTimetable}
+      onListTeachers={listSchoolTeachers} onLoadTeacherSchedule={loadTeacherSchedule} onSaveTeacherSchedule={saveTeacherSchedule}
     />
   )
 
@@ -185,8 +189,8 @@ function AppInner() {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           <Routes>
             <Route path="/"           element={<Dashboard events={events} scheduleEvents={scheduleEvents} showVigilancias={features.vigilancias} />} />
-            <Route path="/horario"    element={<HorarioSemanal scheduleEvents={scheduleEvents} />} />
-            <Route path="/planes"     element={<LessonPlan plans={plans} subjects={subjects} onSave={savePlan} schoolSlug={schoolSlug} />} />
+            <Route path="/horario"    element={<HorarioSemanal scheduleEvents={scheduleEvents} timetable={timetable} schedule={mySchedule} schoolSlug={schoolSlug} />} />
+            <Route path="/planes"     element={<LessonPlan plans={plans} subjects={subjects} onSave={savePlan} schoolSlug={schoolSlug} userId={userId} />} />
             <Route path="/counseling" element={
               features.counseling
                 ? <CollegeCounselor sessions={counselingSessions} role={role} onAdd={addCounselingSession} onDelete={deleteCounselingSession} onUpdateAttendance={updateCounselingAttendance} />
