@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { format, addWeeks, startOfWeek, addDays, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Save, Download, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Save, Download, ChevronDown, ChevronUp, CheckCircle, Layers } from 'lucide-react'
 import { getSchoolGrades, gradeLabel } from '../lib/schoolGrades'
 
 
@@ -33,7 +33,7 @@ const weekLabel = (mondayStr) => {
 const toggleArr = (arr, item) =>
   arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item]
 
-const exportToPDF = (filteredPlans, title, subtitle, subjectsList, groupBySubject = false) => {
+const exportToPDF = (filteredPlans, title, subtitle, subjectsList, groupBySubject = false, schoolName = '') => {
   const withContent = [...filteredPlans].filter(p => p.actividades)
   const sorted = withContent.sort((a, b) =>
     groupBySubject
@@ -141,7 +141,7 @@ const exportToPDF = (filteredPlans, title, subtitle, subjectsList, groupBySubjec
   </style></head><body>
   <div class="page-header">
     <img src="${logoUrl}" alt="CSM">
-    <div><h1>Colegio Santa María</h1><p>Plan Semanal Integrado · Bachillerato</p></div>
+    <div><h1>Colegio Santa María</h1><p>Plan Semanal Integrado${schoolName ? ` · ${esc(schoolName)}` : ''}</p></div>
   </div>
   <div class="plan-meta"><h2>${esc(title)}</h2><p>${esc(subtitle)}</p></div>
   ${content}
@@ -161,7 +161,7 @@ const exportToPDF = (filteredPlans, title, subtitle, subjectsList, groupBySubjec
   }
 }
 
-export default function LessonPlan({ plans, subjects, onSave, schoolSlug, userId }) {
+export default function LessonPlan({ plans, subjects, onSave, schoolSlug, schoolName, userId }) {
   const grades = getSchoolGrades(schoolSlug)
   const [selectedGrade, setGrade] = useState(grades[0])
   // Si cambia la escuela y el grado elegido ya no existe, usar el primero de la escuela
@@ -172,6 +172,9 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, userId
   const [showRef, setShowRef]     = useState(true)
   const [saved, setSaved]         = useState(false)
   const [saveError, setSaveError] = useState(false)
+
+  // Propio o sin dueño (planes migrados del Excel)
+  const isMine = (p) => !p.teacher_id || p.teacher_id === userId
 
   // Plan de una materia/semana: primero el propio; si no hay, uno sin dueño (datos migrados)
   const findPlan = (sid, ws) => {
@@ -218,19 +221,19 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, userId
   const exportSemana = () => {
     const subLabel = subjects.find(s => s.id === subjectId)?.label || subjectId
     exportToPDF(
-      plans.filter(p => p.subjectId === subjectId && (p.week_start || p.weekStart) === weekStart),
+      plans.filter(p => isMine(p) && p.subjectId === subjectId && p.weekStart === weekStart),
       subLabel + ' · ' + gradeLabel(grade),
       'Semana del ' + weekLabel(weekStart),
-      subjects, false
+      subjects, false, schoolName
     )
   }
   const exportMateria = () => {
     const subLabel = subjects.find(s => s.id === subjectId)?.label || subjectId
     exportToPDF(
-      plans.filter(p => p.subjectId === subjectId && p.grade === grade),
+      plans.filter(p => isMine(p) && p.subjectId === subjectId && p.grade === grade),
       subLabel + ' · ' + gradeLabel(grade),
       'Todas las semanas del período',
-      subjects, false
+      subjects, false, schoolName
     )
   }
   const exportGrado = () => {
@@ -238,7 +241,7 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, userId
       plans.filter(p => p.grade === grade),
       'Grado ' + gradeLabel(grade) + ' — Plan Semanal Integrado',
       'Todas las materias · Todas las semanas',
-      subjects, true
+      subjects, true, schoolName
     )
   }
 
@@ -393,6 +396,14 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, userId
         </div>
       )}
 
+      {/* Otras materias del grado */}
+      {subjectId && (
+        <CrossSubjectView
+          plans={plans} subjects={subjects} grade={grade} subjectId={subjectId}
+          weekStart={weekStart} myComps={form.compTransversales}
+        />
+      )}
+
       {/* Form */}
       {subjectId ? (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
@@ -487,6 +498,129 @@ function Field({ label, required, hint, children }) {
         {hint && <span className="text-xs text-slate-400">{hint}</span>}
       </div>
       {children}
+    </div>
+  )
+}
+
+/* ─── Otras materias del grado (esta semana / semana anterior) ─────────────── */
+
+function CrossSubjectView({ plans, subjects, grade, subjectId, weekStart, myComps }) {
+  const [open,       setOpen]       = useState(true)
+  const [weekOffset, setWeekOffset] = useState(0)          // 0 = semana del plan, -1 = anterior
+  const [compFilter, setCompFilter] = useState(null)       // null = usar mis competencias
+  const [onlySum,    setOnlySum]    = useState(false)
+
+  const ws        = getMonday(addWeeks(parseISO(weekStart), weekOffset))
+  const selected  = compFilter ?? myComps
+  const subLabel  = (id) => subjects.find(s => s.id === id)?.label || id
+
+  const others = plans
+    .filter(p => p.grade === grade && p.weekStart === ws && p.subjectId !== subjectId)
+    .filter(p => p.actividades || p.compTransversales?.length)
+    .map(p => ({ ...p, shared: (p.compTransversales || []).filter(c => selected.includes(c)) }))
+
+  const visible = others
+    .filter(p => selected.length === 0 || p.shared.length > 0)
+    .filter(p => !onlySum || p.evaluacion?.includes('Sumativa'))
+    .sort((a, b) => b.shared.length - a.shared.length || subLabel(a.subjectId).localeCompare(subLabel(b.subjectId)))
+
+  const sumCount = others.filter(p => p.evaluacion?.includes('Sumativa')).length
+
+  return (
+    <div className="space-y-3">
+      <button onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors px-1">
+        {open ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        <Layers size={14} /> Otras materias de {gradeLabel(grade)}
+        {others.length > 0
+          ? <span className="bg-violet-100 text-violet-700 text-xs font-bold px-2 py-0.5 rounded-full">{others.length} plan{others.length > 1 ? 'es' : ''}</span>
+          : <span className="text-slate-300 text-xs">sin planes esa semana</span>}
+      </button>
+
+      {open && (
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+          {/* Filtros */}
+          <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex bg-slate-100 rounded-xl p-1 gap-0.5">
+              {[[0, 'Esta semana'], [-1, 'Semana anterior']].map(([off, lbl]) => (
+                <button key={off} onClick={() => setWeekOffset(off)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    weekOffset === off ? 'bg-white text-green-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                  }`}>{lbl}</button>
+              ))}
+            </div>
+            <span className="text-xs text-slate-400">{weekLabel(ws)}</span>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mr-1">Competencias</span>
+              {COMP_TRANSVERSALES.map(({ id, label }) => {
+                const on = selected.includes(id)
+                return (
+                  <button key={id} title={label}
+                    onClick={() => setCompFilter(toggleArr(selected, id))}
+                    className={`px-2 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                      on ? 'bg-violet-600 border-violet-600 text-white' : 'bg-white border-slate-200 text-slate-400 hover:border-violet-300'
+                    }`}>{id}</button>
+                )
+              })}
+              {compFilter !== null && (
+                <button onClick={() => setCompFilter(null)} className="text-[11px] text-slate-400 hover:text-slate-600 underline ml-1">
+                  usar las mías
+                </button>
+              )}
+            </div>
+
+            <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer ml-auto">
+              <input type="checkbox" checked={onlySum} onChange={e => setOnlySum(e.target.checked)} className="accent-green-700" />
+              Solo con sumativa {sumCount > 0 && <span className="text-red-500 font-bold">({sumCount})</span>}
+            </label>
+          </div>
+
+          <p className="px-4 pt-3 text-[11px] text-slate-400">
+            {selected.length === 0
+              ? 'Mostrando todas las materias. Marca competencias para ver solo las que coinciden.'
+              : 'Materias que trabajan al menos una de las competencias marcadas; primero las que comparten más.'}
+          </p>
+
+          {/* Tarjetas */}
+          {visible.length === 0 ? (
+            <div className="p-8 text-center text-slate-300 text-sm">
+              {others.length === 0 ? 'Ninguna otra materia ha registrado plan esa semana' : 'Ninguna materia coincide con el filtro'}
+            </div>
+          ) : (
+            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {visible.map(p => (
+                <div key={p.id} className={`rounded-xl border p-3 space-y-2 ${p.shared.length > 0 ? 'border-violet-200 bg-violet-50/30' : 'border-slate-200'}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-bold text-slate-700">{subLabel(p.subjectId)}</span>
+                    {p.shared.length > 0 && (
+                      <span className="text-[10px] font-bold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full shrink-0">
+                        {p.shared.length} en común
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {(p.compTransversales || []).map(c => (
+                      <span key={c} className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                        p.shared.includes(c) ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-400'
+                      }`}>{c}</span>
+                    ))}
+                    {p.evaluacion?.map(e => (
+                      <span key={e} className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                        e === 'Sumativa' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                      }`}>{e}</span>
+                    ))}
+                  </div>
+                  {p.actividades && <p className="text-xs text-slate-600 leading-relaxed line-clamp-4">{p.actividades}</p>}
+                  {p.conexionProyecto && (
+                    <p className="text-[11px] text-slate-500"><span className="font-bold text-slate-400">Proyecto: </span>{p.conexionProyecto}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

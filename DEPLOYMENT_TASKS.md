@@ -146,12 +146,25 @@ Dato semilla: escuela "High School" insertada en tabla `schools`.
   timbre de High School y horario de jbeltran2).
 - Revisado por Sebastián en el navegador: se ve bien.
 
+**Lesson plan — otras materias del grado**
+- PDF exportado: "Plan Semanal Integrado · <nombre de la escuela>" (antes decía "Bachillerato").
+- Nueva sección **"Otras materias de <grado>"** en el lesson plan: planes de otras materias del mismo grado
+  para la semana del plan o la anterior, filtrables por competencias transversales (por defecto las del docente,
+  ordenadas por cuántas comparten) y "Solo con sumativa".
+- Exportar semana/materia → solo planes propios; exportar grado → todos los del grado.
+- SQL ejecutado en staging (`supabase-migrations/2026-11-23_planes_visibles_en_escuela.sql`): función
+  `get_my_grades()` + política `plans_select_same_grade` → el docente lee planes de su escuela **solo en los grados
+  donde tiene materias asignadas** (`teacher_subjects`). Decisión: uno de 10° no ve los de 9°.
+- ⚠️ Mientras no se asignen materias (tarea 2, pestaña "Usuarios"), los docentes no ven planes de colegas.
+- ⚠️ En el SQL Editor de Supabase falló una función con `$$` ("syntax error at end of input"): usar comillas simples.
+
 **Pendientes de esta sesión**
 - [ ] Cargar el timbre y los cursos de Early Childhood, Primary y Middle School (faltan los datos reales).
 - [ ] Cargar los horarios de los demás docentes (cuando existan sus cuentas y tengamos sus horarios).
 - [ ] Probar con un usuario docente/admin real de otra escuela (no solo "Ver como").
 - [ ] Verificar en staging que guardar un plan y crear un evento funcione de punta a punta.
 - [ ] "Buscar reemplazo": conectar con `teacher_schedules` para mostrar docentes libres.
+- [ ] Probar en el navegador la sección "Otras materias" con planes reales de 2+ materias del mismo grado.
 
 ---
 
@@ -224,7 +237,7 @@ luego asignar rol y school_id en tabla `profiles`):
 | Escuelas | Early Childhood, Primary School, Middle School, High School (tabla `schools`, ordenadas por `sort_order`) |
 | Grados por escuela | Early Childhood: Prekínder, Kínder, Transición · Primary: 1°–5° · Middle: 6°–8° · High: 9°–11° (`src/lib/schoolGrades.js`). En BD se guardan como `prekinder`, `kinder`, `transicion`, `1`…`11` |
 | Enlaces de interés | **Por escuela**: cada escuela tiene su propia lista (pendiente de implementar) |
-| Lesson plan | **Por escuela**: materias y planes separados por `school_id` (pendiente de implementar) |
+| Lesson plan | **Por escuela**: materias y planes separados por `school_id`. **Mismo formulario y mismas competencias transversales en todo el colegio** (decidido 23 nov). PDF muestra el nombre de la escuela |
 | Módulos por escuela | Vigilancias y College Counseling existen **solo en High School** (`src/lib/schoolFeatures.js`) |
 | Vista previa de roles | El super_admin tiene una barra "Ver como" para cambiar de rol y escuela. Solo cambia la interfaz, no los permisos RLS |
 | App en producción | Se mantiene en línea y funcional durante todo el desarrollo. Solo se toca cuando una fase completa esté probada en staging. |
