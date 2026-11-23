@@ -168,6 +168,17 @@ Dato semilla: escuela "High School" insertada en tabla `schools`.
   El límite vive también en `screen_limit_for_school()`: si cambia, cambiar ambos.
 - SQL ejecutado en staging: `supabase-migrations/2026-11-23_limite_pantallas.sql`.
 
+**Notificaciones dentro de la app (fase 1 — el correo queda para la fase 2)**
+- Tabla `notifications` (RLS: cada usuario ve/marca/borra solo las suyas) + Realtime.
+- Triggers en Supabase generan los avisos:
+  - `schedule_events` crear/modificar/cancelar → docentes con esos cursos en `teacher_schedules`
+    (función `teachers_for_courses`); "toda la escuela" → todos los perfiles de la escuela.
+    Cancelar no avisa si el evento ya pasó (la app borra eventos pasados al cargar).
+  - `teacher_schedules` crear/cambiar → aviso al docente.
+  - Quien hace el cambio no se notifica a sí mismo.
+- Frontend: `src/hooks/useNotifications.js`, `src/components/NotificationBell.jsx` (campanita en el header).
+- SQL ejecutado en staging: `supabase-migrations/2026-11-23_notificaciones.sql`.
+
 **Pendientes de esta sesión**
 - [ ] Cargar el timbre y los cursos de Early Childhood, Primary y Middle School (faltan los datos reales).
 - [ ] Cargar los horarios de los demás docentes (cuando existan sus cuentas y tengamos sus horarios).
@@ -182,6 +193,11 @@ Dato semilla: escuela "High School" insertada en tabla `schools`.
       3. Revisar que la barra de uso y "Ya planeado" muestren las materias correctas.
       4. Confirmar trigger: `SELECT tgname FROM pg_trigger WHERE tgname = 'trg_check_screen_limit';`
 - [ ] ¿Límite por curso (3A/3B) en vez de por grado? Requiere que el plan sepa el curso.
+- [ ] **PROBAR notificaciones** con un segundo usuario (p. ej. docente@test.com con horario cargado):
+      crear evento para uno de sus cursos / cambiarle el horario → debe aparecer en su campanita en vivo.
+- [ ] Notificaciones fase 2: correo automático (definir cuenta/dominio de envío con sistemas: Resend o Google Workspace;
+      inmediato solo para lo importante + resumen diario).
+- [ ] ¿Avisar también por eventos del calendario general y asignación de materias?
 
 ---
 

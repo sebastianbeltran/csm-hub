@@ -2,7 +2,7 @@ import { Menu } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-export default function Header({ activeView, viewTitles = {}, onMenuToggle, eventCount }) {
+export default function Header({ activeView, viewTitles = {}, onMenuToggle, eventCount, rightSlot = null }) {
   const VIEW_TITLES = viewTitles
   const today = new Date()
   const dateStr = format(today, "EEEE d 'de' MMMM", { locale: es })
@@ -23,12 +23,15 @@ export default function Header({ activeView, viewTitles = {}, onMenuToggle, even
         </div>
       </div>
 
-      {eventCount > 0 && (
-        <div className="flex items-center gap-1.5 bg-red-50 border border-red-100 rounded-full px-3 py-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
-          <span className="text-xs font-semibold text-red-600">{eventCount} urgente{eventCount > 1 ? 's' : ''}</span>
-        </div>
-      )}
+      <div className="flex items-center gap-3">
+        {eventCount > 0 && (
+          <div className="flex items-center gap-1.5 bg-red-50 border border-red-100 rounded-full px-3 py-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+            <span className="text-xs font-semibold text-red-600">{eventCount} urgente{eventCount > 1 ? 's' : ''}</span>
+          </div>
+        )}
+        {rightSlot}
+      </div>
     </header>
   )
 }

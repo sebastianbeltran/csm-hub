@@ -14,6 +14,8 @@ import LoginPage from './pages/LoginPage'
 import PendingActivationPage from './pages/PendingActivationPage'
 import { useStore } from './hooks/useStore'
 import { useAuth } from './hooks/useAuth'
+import { useNotifications } from './hooks/useNotifications'
+import NotificationBell from './components/NotificationBell'
 import { supabase, missingConfig } from './lib/supabase'
 import { hasFeature } from './lib/schoolFeatures'
 import { parseISO, differenceInDays } from 'date-fns'
@@ -74,6 +76,8 @@ function AppInner() {
     addCounselingSession, deleteCounselingSession, updateCounselingAttendance,
     loadVigilancias, saveVigilancias,
   } = useStore({ userId, schoolId, schoolSlug })
+
+  const { notifications, unread, markRead, markAllRead } = useNotifications(userId)
 
   const features = {
     vigilancias: hasFeature(schoolSlug, 'vigilancias'),
@@ -186,6 +190,7 @@ function AppInner() {
           viewTitles={VIEW_TITLES}
           onMenuToggle={() => setSidebarOpen(o => !o)}
           eventCount={urgentCount}
+          rightSlot={<NotificationBell notifications={notifications} unread={unread} onRead={markRead} onReadAll={markAllRead} />}
         />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           <Routes>
