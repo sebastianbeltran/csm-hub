@@ -130,6 +130,10 @@ Dato semilla: escuela "High School" insertada en tabla `schools`.
 
 ## ✅ PROGRESO — SESIÓN 23 NOV 2026 (desde el Mac)
 
+**Resumen:** horario y lesson plan quedan multi-escuela; lesson plan con vista de otras materias del grado,
+límite de pantallas (EC/Primary) y notificaciones en la app. Todo en `develop`; SQL ya ejecutado en staging
+(archivos en `supabase-migrations/`, en el orden de su nombre). Nada de esto está en `main` ni en producción.
+
 **Horario y lesson plan por escuela**
 - Timbre (periodos/descansos) y cursos **por escuela** en `vigilancias_config` id `horario_<slug>` (`src/lib/schoolTimetable.js`).
 - Horario de clases **por docente** en tabla nueva `teacher_schedules` (lo carga el admin de cada escuela).
@@ -203,7 +207,10 @@ Dato semilla: escuela "High School" insertada en tabla `schools`.
 
 ## 🔜 PRÓXIMA SESIÓN — Por dónde arrancar
 
-**El login funciona. Ahora toca que cada docente vea solo sus propios datos:**
+**Prioridad actualizada (23 nov):** la tarea 2 ("Usuarios") ahora es clave: sin materias asignadas
+(`teacher_subjects`) los docentes no ven "Otras materias del grado", y sin usuarios de prueba (tarea 3)
+no se pueden probar las notificaciones. Orden sugerido: 3 → 2 → 1, luego la lista "Pendientes de esta sesión"
+del 23 nov (pruebas de pantallas, notificaciones, timbres de las otras escuelas).
 
 ```
 [ ] 1. LessonPlan.jsx: mostrar solo las materias asignadas al docente (tabla teacher_subjects)
@@ -252,6 +259,7 @@ luego asignar rol y school_id en tabla `profiles`):
 ### Archivos clave del proyecto
 - `.env.local` — credenciales de staging (nunca al repo)
 - `supabase-staging-schema.sql` — schema completo, ya ejecutado en staging
+- `supabase-migrations/*.sql` — cambios posteriores al schema (ejecutados en staging en orden; pendientes para producción)
 - `DEPLOYMENT_TASKS.md` — este archivo
 
 ---
