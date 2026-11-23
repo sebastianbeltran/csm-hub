@@ -158,6 +158,16 @@ Dato semilla: escuela "High School" insertada en tabla `schools`.
 - ⚠️ Mientras no se asignen materias (tarea 2, pestaña "Usuarios"), los docentes no ven planes de colegas.
 - ⚠️ En el SQL Editor de Supabase falló una función con `$$` ("syntax error at end of input"): usar comillas simples.
 
+**Límite de pantallas (iPad) — Early Childhood y Primary**
+- Feature `screenTime` en `src/lib/schoolFeatures.js` (solo `early_childhood`, `primary_school`); `SCREEN_LIMIT_MIN = 600`.
+- Plan semanal: casilla "Usaré iPad / pantallas esta semana" + minutos totales de la semana (`plans.screen_minutes`).
+- Límite: **10 h (600 min) por grado y semana**, sumando todas las materias (2 h diarias × 5). Decisión del 23 nov:
+  como el plan no tiene días/horas, se cuenta por semana; si se agotó, la casilla queda bloqueada.
+- Barra de uso + materias que ya planearon pantallas (RPC `get_screen_usage`, no depende de `teacher_subjects`).
+- Supabase valida al guardar (trigger `trg_check_screen_limit` → `check_screen_limit()`, con lock para guardados simultáneos).
+  El límite vive también en `screen_limit_for_school()`: si cambia, cambiar ambos.
+- SQL ejecutado en staging: `supabase-migrations/2026-11-23_limite_pantallas.sql`.
+
 **Pendientes de esta sesión**
 - [ ] Cargar el timbre y los cursos de Early Childhood, Primary y Middle School (faltan los datos reales).
 - [ ] Cargar los horarios de los demás docentes (cuando existan sus cuentas y tengamos sus horarios).
@@ -165,6 +175,8 @@ Dato semilla: escuela "High School" insertada en tabla `schools`.
 - [ ] Verificar en staging que guardar un plan y crear un evento funcione de punta a punta.
 - [ ] "Buscar reemplazo": conectar con `teacher_schedules` para mostrar docentes libres.
 - [ ] Probar en el navegador la sección "Otras materias" con planes reales de 2+ materias del mismo grado.
+- [ ] Probar el límite de pantallas en Primary (Ver como → Primary): bloquear al llegar a 10 h.
+- [ ] ¿Límite por curso (3A/3B) en vez de por grado? Requiere que el plan sepa el curso.
 
 ---
 

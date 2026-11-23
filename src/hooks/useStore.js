@@ -32,6 +32,7 @@ const normalizePlan = (p) => ({
   diversidad:        p.diversidad         ?? '',
   actividades:       p.actividades        ?? '',
   observaciones:     p.observaciones      ?? '',
+  screenMinutes:     p.screen_minutes     ?? p.screenMinutes     ?? 0,
 })
 
 export function useStore({ userId = null, schoolId = null, schoolSlug = null } = {}) {
@@ -133,6 +134,7 @@ export function useStore({ userId = null, schoolId = null, schoolSlug = null } =
       diversidad:         plan.diversidad        ?? '',
       actividades:        plan.actividades       ?? '',
       observaciones:      plan.observaciones     ?? '',
+      screen_minutes:     Math.max(0, Math.round(Number(plan.screenMinutes) || 0)),
       saved_at:           new Date().toISOString(),
     }
     const existing = plans.find(p =>
@@ -141,9 +143,17 @@ export function useStore({ userId = null, schoolId = null, schoolSlug = null } =
       ? supabase.from('plans').update(row).eq('id', existing.id)
       : supabase.from('plans').insert(row)
     const { data, error } = await query.select().single()
-    if (error) return false
+    // Devuelve true o el mensaje de error (p. ej. el límite de pantallas que valida Supabase)
+    if (error) return error.message || 'Error al guardar'
     setPlans(prev => [...prev.filter(p => p.id !== data.id), normalizePlan(data)])
     return true
+  }
+
+  // Minutos de pantalla ya planeados en un grado/semana (todas las materias, todos los docentes)
+  const loadScreenUsage = async (grade, weekStart) => {
+    if (!schoolId) return []
+    const { data, error } = await supabase.rpc('get_screen_usage', { p_school: schoolId, p_grade: grade, p_week: weekStart })
+    return error ? null : (data ?? [])
   }
 
   const addSubject = async (subject) => {
@@ -270,7 +280,7 @@ export function useStore({ userId = null, schoolId = null, schoolSlug = null } =
     saveTimetable, listSchoolTeachers, loadTeacherSchedule, saveTeacherSchedule,
     saveLinks,
     addEvent, updateEvent, deleteEvent,
-    savePlan,
+    savePlan, loadScreenUsage,
     addSubject, deleteSubject,
     addScheduleEvent, updateScheduleEvent, deleteScheduleEvent,
     addCounselingSession, deleteCounselingSession, updateCounselingAttendance,

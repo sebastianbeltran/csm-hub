@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { format, addWeeks, startOfWeek, addDays, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Save, Download, ChevronDown, ChevronUp, CheckCircle, Layers } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Save, Download, ChevronDown, ChevronUp, CheckCircle, Layers, Tablet, Lock } from 'lucide-react'
+import { SCREEN_LIMIT_MIN } from '../lib/schoolFeatures'
 import { getSchoolGrades, gradeLabel } from '../lib/schoolGrades'
 
 
@@ -17,7 +18,13 @@ const COMP_TRANSVERSALES = [
 const emptyForm = {
   actividades: '', evaluacion: [], diferenciacion: '',
   diversidad: '', compTransversales: [], compArea: '',
-  conexionProyecto: '', observaciones: '',
+  conexionProyecto: '', observaciones: '', screenMinutes: 0,
+}
+
+// 90 → '1 h 30 min' · 600 → '10 h'
+const fmtMin = (m) => {
+  const h = Math.floor(m / 60), r = m % 60
+  return [h ? `${h} h` : '', r || !h ? `${r} min` : ''].filter(Boolean).join(' ')
 }
 
 const getMonday = (date) =>
@@ -161,7 +168,7 @@ const exportToPDF = (filteredPlans, title, subtitle, subjectsList, groupBySubjec
   }
 }
 
-export default function LessonPlan({ plans, subjects, onSave, schoolSlug, schoolName, userId }) {
+export default function LessonPlan({ plans, subjects, onSave, schoolSlug, schoolName, userId, showScreenTime = false, onLoadScreenUsage }) {
   const grades = getSchoolGrades(schoolSlug)
   const [selectedGrade, setGrade] = useState(grades[0])
   // Si cambia la escuela y el grado elegido ya no existe, usar el primero de la escuela
@@ -172,6 +179,19 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, school
   const [showRef, setShowRef]     = useState(true)
   const [saved, setSaved]         = useState(false)
   const [saveError, setSaveError] = useState(false)
+  const [screenUsage, setScreenUsage] = useState(null)   // [{ subject_id, teacher_id, minutes }] del grado/semana
+
+  const refreshScreenUsage = () => {
+    if (!showScreenTime || !onLoadScreenUsage) return
+    onLoadScreenUsage(grade, weekStart).then(setScreenUsage)
+  }
+  useEffect(refreshScreenUsage, [showScreenTime, grade, weekStart]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pantallas ya usadas por los demás planes del grado esta semana (excluye este mismo plan)
+  const otherScreen   = (screenUsage ?? []).filter(u => !(u.subject_id === subjectId && u.teacher_id === userId))
+  const otherMinutes  = otherScreen.reduce((sum, u) => sum + (u.minutes || 0), 0)
+  const screenLeft    = Math.max(0, SCREEN_LIMIT_MIN - otherMinutes)
+  const screenOver    = showScreenTime && form.screenMinutes > screenLeft
 
   // Propio o sin dueño (planes migrados del Excel)
   const isMine = (p) => !p.teacher_id || p.teacher_id === userId
@@ -204,6 +224,7 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, school
       compArea:          existing.compArea          || '',
       conexionProyecto:  existing.conexionProyecto  || '',
       observaciones:     existing.observaciones     || '',
+      screenMinutes:     existing.screenMinutes     || 0,
     } : emptyForm)
   }, [subjectId, weekStart, plans, userId]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -211,9 +232,10 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, school
   const setField = (f, v) => setForm(p => ({ ...p, [f]: v }))
 
   const handleSave = async () => {
-    if (!subjectId) return
-    const ok = await onSave({ ...form, subjectId, grade, weekStart })
-    if (!ok) { setSaveError(true); setTimeout(() => setSaveError(false), 4000); return }
+    if (!subjectId || screenOver) return
+    const ok = await onSave({ ...form, screenMinutes: showScreenTime ? form.screenMinutes : 0, subjectId, grade, weekStart })
+    refreshScreenUsage()
+    if (ok !== true) { setSaveError(true); setTimeout(() => setSaveError(false), 4000); return }
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
@@ -338,7 +360,7 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, school
               </>
             )}
           </div>
-          <button onClick={handleSave} disabled={!subjectId}
+          <button onClick={handleSave} disabled={!subjectId || screenOver}
             className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
               saved ? 'bg-emerald-600 text-white' : saveError ? 'bg-red-600 text-white' : 'bg-green-700 text-white hover:bg-green-800'
             }`}>
@@ -444,6 +466,17 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, school
                 </div>
               </Field>
             </div>
+            {showScreenTime && (
+              <ScreenTimeField
+                minutes={form.screenMinutes}
+                onChange={(m) => setField('screenMinutes', m)}
+                left={screenLeft}
+                others={otherScreen}
+                subjects={subjects}
+                grade={grade}
+                unavailable={screenUsage === null}
+              />
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <Field label="Diferenciación" hint="E · M · IP">
                 <textarea value={form.diferenciacion} onChange={e => setField('diferenciacion', e.target.value)}
@@ -468,7 +501,7 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, school
                 placeholder="Notas libres: incidencias, ajustes de última hora, seguimiento..." className={ta} rows={3} />
             </Field>
             <div className="flex justify-end pt-2 border-t border-slate-100">
-              <button onClick={handleSave} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
+              <button onClick={handleSave} disabled={screenOver} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                 saved ? 'bg-emerald-600 text-white' : saveError ? 'bg-red-600 text-white' : 'bg-green-700 text-white hover:bg-green-800'
               }`}>
                 {saved ? <><CheckCircle size={15} /> Guardado correctamente</> : saveError ? 'No se pudo guardar — intenta de nuevo' : <><Save size={15} /> Guardar plan semanal</>}
@@ -610,6 +643,9 @@ function CrossSubjectView({ plans, subjects, grade, subjectId, weekStart, myComp
                         e === 'Sumativa' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                       }`}>{e}</span>
                     ))}
+                    {p.screenMinutes > 0 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-sky-100 text-sky-700">iPad {fmtMin(p.screenMinutes)}</span>
+                    )}
                   </div>
                   {p.actividades && <p className="text-xs text-slate-600 leading-relaxed line-clamp-4">{p.actividades}</p>}
                   {p.conexionProyecto && (
@@ -619,6 +655,75 @@ function CrossSubjectView({ plans, subjects, grade, subjectId, weekStart, myComp
               ))}
             </div>
           )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── Uso de pantallas (Early Childhood y Primary) ─────────────────────────── */
+
+function ScreenTimeField({ minutes, onChange, left, others, subjects, grade, unavailable }) {
+  const using   = minutes > 0
+  const locked  = !using && left <= 0
+  const over    = minutes > left
+  const used    = SCREEN_LIMIT_MIN - left
+  const pctOthers = Math.min(100, used / SCREEN_LIMIT_MIN * 100)
+  const pctMine   = Math.min(100 - pctOthers, minutes / SCREEN_LIMIT_MIN * 100)
+  const subLabel  = (id) => subjects.find(s => s.id === id)?.label || id
+
+  return (
+    <div className={`rounded-2xl border p-4 space-y-3 ${locked ? 'border-slate-200 bg-slate-50' : 'border-sky-200 bg-sky-50/40'}`}>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <label className={`flex items-center gap-2 text-sm font-bold ${locked ? 'text-slate-400 cursor-not-allowed' : 'text-slate-700 cursor-pointer'}`}>
+          <input type="checkbox" checked={using} disabled={locked || unavailable}
+            onChange={e => onChange(e.target.checked ? Math.min(45, left) : 0)}
+            className="w-4 h-4 accent-sky-600" />
+          {locked ? <Lock size={14} /> : <Tablet size={14} className="text-sky-600" />}
+          Usaré iPad / pantallas esta semana
+        </label>
+        <span className="text-xs text-slate-500">
+          {gradeLabel(grade)} · usado {fmtMin(used + (over ? 0 : minutes))} de {fmtMin(SCREEN_LIMIT_MIN)}
+        </span>
+      </div>
+
+      {/* Barra: otros docentes + este plan */}
+      <div className="h-2 rounded-full bg-slate-200 overflow-hidden flex">
+        <div className="h-full bg-slate-400" style={{ width: `${pctOthers}%` }} />
+        <div className={`h-full ${over ? 'bg-red-500' : 'bg-sky-500'}`} style={{ width: `${pctMine}%` }} />
+      </div>
+
+      {unavailable && (
+        <p className="text-xs text-amber-600">No se pudo consultar el uso de pantallas del grado. Intenta recargar la página.</p>
+      )}
+
+      {locked && (
+        <p className="text-xs text-slate-500 font-medium">
+          Se alcanzó el límite de {fmtMin(SCREEN_LIMIT_MIN)} de pantallas para {gradeLabel(grade)} esta semana. Esta semana no se pueden usar pantallas en esta materia.
+        </p>
+      )}
+
+      {using && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Tiempo total en la semana</label>
+          <input type="number" min={5} step={5} value={minutes}
+            onChange={e => onChange(Math.max(0, Math.round(Number(e.target.value) || 0)))}
+            className={`w-24 px-3 py-1.5 border rounded-xl text-sm focus:outline-none focus:ring-2 ${over ? 'border-red-300 focus:ring-red-300' : 'border-slate-200 focus:ring-sky-300'}`} />
+          <span className="text-xs text-slate-500">min ({fmtMin(minutes)})</span>
+          <span className={`text-xs font-semibold ml-auto ${over ? 'text-red-600' : 'text-slate-500'}`}>
+            {over ? `Solo quedan ${fmtMin(left)} — reduce el tiempo para poder guardar` : `Disponible para ti: ${fmtMin(left)}`}
+          </span>
+        </div>
+      )}
+
+      {others.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[11px] text-slate-400 font-semibold mr-1">Ya planeado:</span>
+          {others.map((u, i) => (
+            <span key={i} className="text-[11px] bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
+              {subLabel(u.subject_id)} · {fmtMin(u.minutes)}
+            </span>
+          ))}
         </div>
       )}
     </div>

@@ -68,7 +68,7 @@ function AppInner() {
     saveTimetable, listSchoolTeachers, loadTeacherSchedule, saveTeacherSchedule,
     saveLinks,
     addEvent, updateEvent, deleteEvent,
-    savePlan,
+    savePlan, loadScreenUsage,
     addSubject, deleteSubject,
     addScheduleEvent, updateScheduleEvent, deleteScheduleEvent,
     addCounselingSession, deleteCounselingSession, updateCounselingAttendance,
@@ -78,6 +78,7 @@ function AppInner() {
   const features = {
     vigilancias: hasFeature(schoolSlug, 'vigilancias'),
     counseling:  hasFeature(schoolSlug, 'counseling'),
+    screenTime:  hasFeature(schoolSlug, 'screenTime'),
   }
 
   const urgentCount = events.filter(e => {
@@ -190,7 +191,8 @@ function AppInner() {
           <Routes>
             <Route path="/"           element={<Dashboard events={events} scheduleEvents={scheduleEvents} showVigilancias={features.vigilancias} />} />
             <Route path="/horario"    element={<HorarioSemanal scheduleEvents={scheduleEvents} timetable={timetable} schedule={mySchedule} schoolSlug={schoolSlug} />} />
-            <Route path="/planes"     element={<LessonPlan plans={plans} subjects={subjects} onSave={savePlan} schoolSlug={schoolSlug} schoolName={schools.find(s => s.id === schoolId)?.name} userId={userId} />} />
+            <Route path="/planes"     element={<LessonPlan plans={plans} subjects={subjects} onSave={savePlan} schoolSlug={schoolSlug} schoolName={schools.find(s => s.id === schoolId)?.name} userId={userId}
+              showScreenTime={features.screenTime} onLoadScreenUsage={loadScreenUsage} />} />
             <Route path="/counseling" element={
               features.counseling
                 ? <CollegeCounselor sessions={counselingSessions} role={role} onAdd={addCounselingSession} onDelete={deleteCounselingSession} onUpdateAttendance={updateCounselingAttendance} />
