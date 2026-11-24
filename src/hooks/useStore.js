@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase, missingConfig } from '../lib/supabase'
 import seedLinks from '../data/enlaces.json'
 import { timetableId } from '../lib/schoolTimetable'
@@ -35,54 +35,96 @@ const normalizePlan = (p) => ({
   screenMinutes:     p.screen_minutes     ?? p.screenMinutes     ?? 0,
 })
 
-export function useStore({ userId = null, schoolId = null, schoolSlug = null } = {}) {
+// PostgREST devuelve SETOF uuid como ['id', ...] o [{ fn: 'id' }, ...] según la versión
+const scalarList = (rows) => (rows ?? []).map(r => (r && typeof r === 'object') ? Object.values(r)[0] : r).filter(Boolean)
+
+const dedupeLinks = (list) => {
+  const seen = new Set()
+  return list.filter(l => { const k = (l.url || l.title || '').toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true })
+}
+
+// schoolId/schoolSlug = escuela que se ADMINISTRA (la principal, o la elegida en "Ver como").
+// homeSlug = escuela principal del perfil (timbre del horario personal).
+// Las vistas personales usan siempre todas las escuelas del usuario (scopeSchoolIds).
+export function useStore({ userId = null, schoolId = null, schoolSlug = null, homeSlug = null, previewSchoolId = null, schools = [] } = {}) {
   const [events,             setEvents]             = useState([])
   const [plans,              setPlans]              = useState([])
   const [subjects,           setSubjects]           = useState([])
   const [counselingSessions, setCounselingSessions] = useState([])
   const [scheduleEvents,     setScheduleEvents]     = useState([])
-  const [links,              setLinks]              = useState(seedLinks)
-  const [timetable,          setTimetable]          = useState(null)   // { slots, courses } de la escuela
+  const [linksBySlug,        setLinksBySlug]        = useState({})     // { slug: [enlaces] }
+  const [memberSchoolIds,    setMemberSchoolIds]    = useState([])     // escuelas del usuario (principal + materias)
+  const [timetable,          setTimetable]          = useState(null)   // { slots, courses } de la escuela administrada
+  const [homeTimetable,      setHomeTimetable]      = useState(null)   // timbre de la escuela principal (mi horario)
   const [mySchedule,         setMySchedule]         = useState(null)   // horario del usuario
+  const [mySubjectIds,       setMySubjectIds]       = useState([])     // materias asignadas (teacher_subjects)
   const [loading,           setLoading]            = useState(true)
   const [error,              setError]              = useState(null)
 
-  const loadAll = useCallback(async () => {
+  // quiet = recargar sin la pantalla de "Cargando..." (no desmonta la vista actual)
+  const loadAll = useCallback(async ({ quiet = false } = {}) => {
     if (missingConfig) {
       setError('Faltan las variables de entorno de Supabase. Configúralas en Vercel → Settings → Environment Variables y redesplega.')
       setLoading(false)
       return
     }
     if (!userId) { setLoading(false); return }
-    setLoading(true)
+    if (!quiet) setLoading(true)
     setError(null)
     try {
-      const [evtsRes, plnsRes, subsRes, counselRes, linksRes, schedEvtsRes, ttRes, mySchedRes] = await Promise.all([
+      // Escuelas del usuario: la principal + las de sus materias asignadas
+      const myRes  = await supabase.rpc('get_my_school_ids')
+      const member = [...new Set([schoolId, ...(myRes.error ? [] : scalarList(myRes.data))].filter(Boolean))]
+      setMemberSchoolIds(member)
+      // Datos: mis escuelas + la que se administra (las vistas filtran después)
+      const scope      = [...new Set([...member, previewSchoolId, schoolId].filter(Boolean))]
+      const scopeSlugs = scope.map(id => schools.find(sc => sc.id === id)?.slug).filter(Boolean)
+      const linkIds    = [...new Set([...scopeSlugs, schoolSlug].filter(Boolean))].map(linksId)
+
+      const [evtsRes, plnsRes, subsRes, counselRes, linksRes, schedEvtsRes, ttRes, mySchedRes, mySubsRes, homeTtRes] = await Promise.all([
         supabase.from('events').select('*').order('date', { ascending: true }),
         supabase.from('plans').select('*'),
         supabase.from('subjects').select('*').order('grade').order('created_at'),
         supabase.from('counseling_sessions').select('*').order('session_date').order('session_time'),
-        supabase.from('vigilancias_config').select('data').eq('id', linksId(schoolSlug)).maybeSingle(),
+        linkIds.length
+          ? supabase.from('vigilancias_config').select('id, data').in('id', linkIds)
+          : supabase.from('vigilancias_config').select('id, data').eq('id', linksId(null)),
         supabase.from('schedule_events').select('*').order('date').order('time_start'),
         schoolSlug
           ? supabase.from('vigilancias_config').select('data').eq('id', timetableId(schoolSlug)).maybeSingle()
           : Promise.resolve({ data: null, error: null }),
         supabase.from('teacher_schedules').select('schedule').eq('teacher_id', userId).maybeSingle(),
+        supabase.from('teacher_subjects').select('subject_id').eq('teacher_id', userId),
+        homeSlug && homeSlug !== schoolSlug
+          ? supabase.from('vigilancias_config').select('data').eq('id', timetableId(homeSlug)).maybeSingle()
+          : Promise.resolve({ data: null, error: null, same: true }),
       ])
       if (evtsRes.error)   throw evtsRes.error
       if (plnsRes.error)   throw plnsRes.error
       if (subsRes.error)   throw subsRes.error
-      // El RLS filtra por la escuela del perfil, pero el super_admin ve todo:
-      // filtrar también en el cliente por la escuela activa (incluye "Ver como").
-      const inSchool    = (row) => !schoolId || row.school_id === schoolId
-      const inSchoolOrGlobal = (row) => !schoolId || !row.school_id || row.school_id === schoolId
+      // El RLS filtra por las escuelas del usuario, pero el super_admin ve todo:
+      // filtrar también en el cliente por las escuelas visibles (incluye "Ver como").
+      const scopeSet         = new Set(scope)
+      const inSchool         = (row) => scope.length === 0 || scopeSet.has(row.school_id)
+      const inSchoolOrGlobal = (row) => scope.length === 0 || !row.school_id || scopeSet.has(row.school_id)
       setEvents((evtsRes.data ?? []).filter(inSchoolOrGlobal))
       setPlans((plnsRes.data ?? []).filter(inSchoolOrGlobal).map(normalizePlan))
       setSubjects((subsRes.data ?? []).filter(inSchool))
-      setTimetable(!ttRes.error && Array.isArray(ttRes.data?.data?.slots) ? ttRes.data.data : null)
+      const tt = !ttRes.error && Array.isArray(ttRes.data?.data?.slots) ? ttRes.data.data : null
+      setTimetable(tt)
+      setHomeTimetable(homeTtRes.same ? tt : (!homeTtRes.error && Array.isArray(homeTtRes.data?.data?.slots) ? homeTtRes.data.data : null))
       setMySchedule(!mySchedRes.error ? (mySchedRes.data?.schedule ?? null) : null)
+      setMySubjectIds(!mySubsRes.error ? (mySubsRes.data ?? []).map(r => r.subject_id) : [])
       if (!counselRes.error) setCounselingSessions((counselRes.data ?? []).filter(inSchool).map(normalizeCounseling))
-      if (!linksRes.error && Array.isArray(linksRes.data?.data)) setLinks(linksRes.data.data)
+      if (!linksRes.error) {
+        const bySlug = {}
+        for (const row of linksRes.data ?? []) {
+          if (!Array.isArray(row.data)) continue
+          const slug = row.id === 'enlaces' ? '' : row.id.replace(/^enlaces_/, '')
+          bySlug[slug] = row.data
+        }
+        setLinksBySlug(bySlug)
+      }
       if (!schedEvtsRes.error) {
         const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
         // Limpiar eventos pasados (fire-and-forget; solo funciona para admin por RLS)
@@ -94,9 +136,22 @@ export function useStore({ userId = null, schoolId = null, schoolSlug = null } =
     } finally {
       setLoading(false)
     }
-  }, [userId, schoolId, schoolSlug])
+  }, [userId, schoolId, schoolSlug, homeSlug, previewSchoolId, schools]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { loadAll() }, [loadAll])
+
+  // Escuelas de las vistas personales: siempre todas las del usuario
+  const scopeSchoolIds = useMemo(
+    () => memberSchoolIds.length ? memberSchoolIds : [schoolId].filter(Boolean),
+    [memberSchoolIds, schoolId])
+
+  // Enlaces: unión de las escuelas visibles (para leer) y los de la escuela principal (para editar)
+  const links = useMemo(() => {
+    const slugs  = scopeSchoolIds.map(id => schools.find(sc => sc.id === id)?.slug).filter(Boolean)
+    const merged = slugs.flatMap(sl => linksBySlug[sl] ?? [])
+    return merged.length ? dedupeLinks(merged) : (linksBySlug[schoolSlug] ?? linksBySlug[''] ?? seedLinks)
+  }, [scopeSchoolIds, schools, linksBySlug, schoolSlug])
+  const schoolLinks = linksBySlug[schoolSlug ?? ''] ?? linksBySlug[''] ?? seedLinks
 
   // id lo genera Supabase (UUID). El evento queda asociado a la escuela activa.
   const addEvent = async (event) => {
@@ -122,7 +177,8 @@ export function useStore({ userId = null, schoolId = null, schoolSlug = null } =
   const savePlan = async (plan) => {
     const row = {
       teacher_id:         userId,
-      school_id:          schoolId,
+      // El plan es de la escuela de la materia (un docente puede dictar en varias)
+      school_id:          subjects.find(s => s.id === plan.subjectId)?.school_id ?? schoolId,
       subject_id:         plan.subjectId,
       week_start:         plan.weekStart,
       grade:              plan.grade,
@@ -150,9 +206,9 @@ export function useStore({ userId = null, schoolId = null, schoolSlug = null } =
   }
 
   // Minutos de pantalla ya planeados en un grado/semana (todas las materias, todos los docentes)
-  const loadScreenUsage = async (grade, weekStart) => {
-    if (!schoolId) return []
-    const { data, error } = await supabase.rpc('get_screen_usage', { p_school: schoolId, p_grade: grade, p_week: weekStart })
+  const loadScreenUsage = async (grade, weekStart, planSchoolId = schoolId) => {
+    if (!planSchoolId) return []
+    const { data, error } = await supabase.rpc('get_screen_usage', { p_school: planSchoolId, p_grade: grade, p_week: weekStart })
     return error ? null : (data ?? [])
   }
 
@@ -234,7 +290,7 @@ export function useStore({ userId = null, schoolId = null, schoolSlug = null } =
     const { error } = await supabase
       .from('vigilancias_config')
       .upsert({ id: linksId(schoolSlug), data: next, updated_at: new Date().toISOString() })
-    if (!error) setLinks(next)
+    if (!error) setLinksBySlug(prev => ({ ...prev, [schoolSlug ?? '']: next }))
     return !error
   }
 
@@ -245,7 +301,7 @@ export function useStore({ userId = null, schoolId = null, schoolSlug = null } =
     const { error } = await supabase
       .from('vigilancias_config')
       .upsert({ id: timetableId(schoolSlug), data: next, updated_at: new Date().toISOString() })
-    if (!error) setTimetable(next)
+    if (!error) { setTimetable(next); if (schoolSlug === homeSlug) setHomeTimetable(next) }
     return !error
   }
 
@@ -274,9 +330,54 @@ export function useStore({ userId = null, schoolId = null, schoolSlug = null } =
     return !error
   }
 
+  // ── Usuarios (Admin → "Usuarios") ─────────────────────────────────────────
+
+  // Usuarios de la escuela activa: los de esa escuela principal, los que dictan materias ahí
+  // y los pendientes (recién registrados, sin escuela). Cada uno con sus materias y escuelas.
+  const listUsers = async () => {
+    const { data, error } = await supabase.from('profiles')
+      .select('id, full_name, email, role, school_id, active, last_login, created_at')
+      .order('full_name')
+    if (error) return { users: [], error: error.message }
+    const all = data ?? []
+    const ids = all.map(u => u.id)
+    const subsRes = ids.length
+      ? await supabase.from('teacher_subjects').select('teacher_id, subject_id, subjects(school_id)').in('teacher_id', ids)
+      : { data: [] }
+    const subs = {}, extra = {}
+    for (const r of subsRes.data ?? []) {
+      (subs[r.teacher_id] ??= []).push(r.subject_id)
+      if (r.subjects?.school_id) (extra[r.teacher_id] ??= new Set()).add(r.subjects.school_id)
+    }
+    const users = all
+      .map(u => ({
+        ...u,
+        subjectIds: subs[u.id] ?? [],
+        schoolIds:  [...new Set([u.school_id, ...(extra[u.id] ?? [])].filter(Boolean))],
+        // De esta escuela (principal o dicta aquí) o pendiente; el resto solo lo ve el super_admin
+        inSchool:   !u.school_id || !schoolId || u.school_id === schoolId || (extra[u.id]?.has(schoolId) ?? false),
+      }))
+    return { users, error: null }
+  }
+
+  // Perfil + materias en una sola operación (RPC admin_save_user valida permisos en Supabase)
+  const saveUser = async ({ id, fullName, role, schoolId: userSchool, active, subjectIds }) => {
+    const { error } = await supabase.rpc('admin_save_user', {
+      p_user: id, p_full_name: fullName ?? '', p_role: role,
+      p_school: userSchool || null, p_active: !!active, p_subjects: subjectIds ?? [],
+      p_scope: schoolId,
+    })
+    if (error) return error.message || 'Error al guardar'
+    // Mis propias materias cambian mis escuelas visibles: recargar todo
+    if (id === userId) loadAll({ quiet: true })
+    return true
+  }
+
   return {
     events, plans, subjects, counselingSessions, scheduleEvents, links, loading, error,
-    timetable, mySchedule,
+    timetable, homeTimetable, mySchedule, mySubjectIds,
+    scopeSchoolIds, memberSchoolIds, schoolLinks,
+    listUsers, saveUser,
     saveTimetable, listSchoolTeachers, loadTeacherSchedule, saveTeacherSchedule,
     saveLinks,
     addEvent, updateEvent, deleteEvent,

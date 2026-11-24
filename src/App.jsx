@@ -51,7 +51,7 @@ function AppInner() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const { user, profile, role, fullName, authLoading, login, logout,
-    isSuperAdmin, previewRole, setPreviewRole, schoolId, setPreviewSchoolId,
+    isSuperAdmin, previewRole, setPreviewRole, schoolId, previewSchoolId, setPreviewSchoolId,
   } = useAuth()
 
   // Schools se carga antes de useStore para derivar schoolSlug
@@ -64,9 +64,12 @@ function AppInner() {
   }, [userId])
 
   const schoolSlug = userId ? (schools.find(s => s.id === schoolId)?.slug ?? null) : null
+  const homeSlug   = userId ? (schools.find(s => s.id === profile?.school_id)?.slug ?? null) : null
 
   const { events, plans, subjects, counselingSessions, scheduleEvents, links, loading, error,
-    timetable, mySchedule,
+    timetable, homeTimetable, mySchedule, mySubjectIds,
+    scopeSchoolIds, schoolLinks,
+    listUsers, saveUser,
     saveTimetable, listSchoolTeachers, loadTeacherSchedule, saveTeacherSchedule,
     saveLinks,
     addEvent, updateEvent, deleteEvent,
@@ -75,17 +78,28 @@ function AppInner() {
     addScheduleEvent, updateScheduleEvent, deleteScheduleEvent,
     addCounselingSession, deleteCounselingSession, updateCounselingAttendance,
     loadVigilancias, saveVigilancias,
-  } = useStore({ userId, schoolId, schoolSlug })
+  } = useStore({ userId, schoolId, schoolSlug, homeSlug, previewSchoolId, schools })
+
+  // Escuelas visibles (un docente puede dictar en varias): se ve todo lo de todas
+  const scopeSchools = schools.filter(s => scopeSchoolIds.includes(s.id))
+  const scopeSlugs   = scopeSchools.map(s => s.slug)
+  const anyFeature   = (f) => (scopeSlugs.length ? scopeSlugs : [schoolSlug]).some(sl => hasFeature(sl, f))
+
+  // Vistas personales (Dashboard, Plan, Horario...): siempre todas mis escuelas,
+  // sin importar la escuela que se administra en "Ver como"
+  const mine         = (row) => !row.school_id || scopeSchoolIds.includes(row.school_id)
+  const myEvents     = events.filter(mine)
+  const mySchedEvts  = scheduleEvents.filter(mine)
 
   const { notifications, unread, markRead, markAllRead } = useNotifications(userId)
 
   const features = {
-    vigilancias: hasFeature(schoolSlug, 'vigilancias'),
-    counseling:  hasFeature(schoolSlug, 'counseling'),
-    screenTime:  hasFeature(schoolSlug, 'screenTime'),
+    vigilancias: anyFeature('vigilancias'),
+    counseling:  anyFeature('counseling'),
+    screenTime:  anyFeature('screenTime'),
   }
 
-  const urgentCount = events.filter(e => {
+  const urgentCount = myEvents.filter(e => {
     try {
       const days = differenceInDays(parseISO(e.date), new Date())
       return days >= 0 && days <= 3 && e.priority === 'high'
@@ -155,21 +169,25 @@ function AppInner() {
     />
   )
 
+  // El panel de administración trabaja solo sobre la escuela principal (o la de "Ver como")
+  const ownSchool = (row) => !schoolId || row.school_id === schoolId
   const adminPanel = (
     <AdminPanel
-      events={events} subjects={subjects}
+      events={events.filter(e => !e.school_id || ownSchool(e))} subjects={subjects.filter(ownSchool)}
       onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent}
       onAddSubject={addSubject} onDeleteSubject={deleteSubject}
-      scheduleEvents={scheduleEvents}
+      scheduleEvents={scheduleEvents.filter(ownSchool)}
       onAddScheduleEvent={addScheduleEvent} onUpdateScheduleEvent={updateScheduleEvent} onDeleteScheduleEvent={deleteScheduleEvent}
       onSaveVigilancias={saveVigilancias} onLoadVigilancias={loadVigilancias}
-      links={links} onSaveLinks={saveLinks}
-      showVigilancias={features.vigilancias}
+      links={schoolLinks} onSaveLinks={saveLinks}
+      showVigilancias={hasFeature(schoolSlug, 'vigilancias')}
       schoolSlug={schoolSlug}
       role={role}
       onRequestLogin={() => {}}
       timetable={timetable} onSaveTimetable={saveTimetable}
       onListTeachers={listSchoolTeachers} onLoadTeacherSchedule={loadTeacherSchedule} onSaveTeacherSchedule={saveTeacherSchedule}
+      onListUsers={listUsers} onSaveUser={saveUser}
+      schools={schools} schoolId={schoolId} isSuperAdmin={isSuperAdmin} currentUserId={userId}
     />
   )
 
@@ -194,13 +212,14 @@ function AppInner() {
         />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           <Routes>
-            <Route path="/"           element={<Dashboard events={events} scheduleEvents={scheduleEvents} showVigilancias={features.vigilancias} />} />
-            <Route path="/horario"    element={<HorarioSemanal scheduleEvents={scheduleEvents} timetable={timetable} schedule={mySchedule} schoolSlug={schoolSlug} />} />
-            <Route path="/planes"     element={<LessonPlan plans={plans} subjects={subjects} onSave={savePlan} schoolSlug={schoolSlug} schoolName={schools.find(s => s.id === schoolId)?.name} userId={userId}
+            <Route path="/"           element={<Dashboard events={myEvents} scheduleEvents={mySchedEvts} showVigilancias={features.vigilancias} />} />
+            <Route path="/horario"    element={<HorarioSemanal scheduleEvents={mySchedEvts} timetable={homeTimetable} schedule={mySchedule} schoolSlug={homeSlug ?? schoolSlug} />} />
+            <Route path="/planes"     element={<LessonPlan plans={plans.filter(mine)} subjects={subjects.filter(mine)} onSave={savePlan} schools={scopeSchools.length ? scopeSchools : schools.filter(s => s.id === schoolId)} userId={userId}
+              role={role} mySubjectIds={mySubjectIds}
               showScreenTime={features.screenTime} onLoadScreenUsage={loadScreenUsage} />} />
             <Route path="/counseling" element={
               features.counseling
-                ? <CollegeCounselor sessions={counselingSessions} role={role} onAdd={addCounselingSession} onDelete={deleteCounselingSession} onUpdateAttendance={updateCounselingAttendance} />
+                ? <CollegeCounselor sessions={counselingSessions.filter(mine)} role={role} onAdd={addCounselingSession} onDelete={deleteCounselingSession} onUpdateAttendance={updateCounselingAttendance} />
                 : <Navigate to="/" replace />
             } />
             <Route path="/enlaces"    element={<Enlaces links={links} />} />

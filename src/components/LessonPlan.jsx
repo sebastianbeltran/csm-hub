@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { format, addWeeks, startOfWeek, addDays, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Save, Download, ChevronDown, ChevronUp, CheckCircle, Layers, Tablet, Lock } from 'lucide-react'
-import { SCREEN_LIMIT_MIN } from '../lib/schoolFeatures'
-import { getSchoolGrades, gradeLabel } from '../lib/schoolGrades'
+import { ChevronLeft, ChevronRight, Save, Download, ChevronDown, ChevronUp, CheckCircle, Layers, Tablet, Lock, Info } from 'lucide-react'
+import { SCREEN_LIMIT_MIN, hasFeature } from '../lib/schoolFeatures'
+import { getSchoolGrades, gradeLabel, GRADES_BY_SCHOOL } from '../lib/schoolGrades'
 
 
 const COMP_TRANSVERSALES = [
@@ -168,8 +168,23 @@ const exportToPDF = (filteredPlans, title, subtitle, subjectsList, groupBySubjec
   }
 }
 
-export default function LessonPlan({ plans, subjects, onSave, schoolSlug, schoolName, userId, showScreenTime = false, onLoadScreenUsage }) {
-  const grades = getSchoolGrades(schoolSlug)
+// schools = escuelas visibles del usuario, en orden (un docente puede dictar en varias)
+export default function LessonPlan({ plans, subjects, onSave, schools = [], userId, role, mySubjectIds = [], showScreenTime: screenTimeEnabled = false, onLoadScreenUsage }) {
+  // Materias asignadas por el admin (teacher_subjects). Un docente ve solo esas; los demás roles
+  // ven todas si no tienen asignaciones. "Ver todas" es para casos excepcionales (reemplazos).
+  const [showAll, setShowAll] = useState(false)
+  const assigned    = subjects.filter(s => mySubjectIds.includes(s.id))
+  const canRestrict = assigned.length > 0 || role === 'docente'
+  const restricted  = canRestrict && !showAll
+  const usable      = restricted ? assigned : subjects
+  const usableKey   = usable.map(s => s.id).join(',')
+  const noAssigned  = restricted && assigned.length === 0
+
+  const unionGrades  = schools.flatMap(sc => GRADES_BY_SCHOOL[sc.slug] ?? [])
+  const schoolGrades = unionGrades.length ? [...new Set(unionGrades)] : getSchoolGrades(null)
+  const grades = restricted && assigned.length > 0
+    ? schoolGrades.filter(g => assigned.some(s => s.grade === g))
+    : schoolGrades
   const [selectedGrade, setGrade] = useState(grades[0])
   // Si cambia la escuela y el grado elegido ya no existe, usar el primero de la escuela
   const grade = grades.includes(selectedGrade) ? selectedGrade : grades[0]
@@ -181,11 +196,17 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, school
   const [saveError, setSaveError] = useState(false)
   const [screenUsage, setScreenUsage] = useState(null)   // [{ subject_id, teacher_id, minutes }] del grado/semana
 
+  // Escuela del plan: la de la materia elegida (o la dueña del grado)
+  const gradeSchool  = schools.find(sc => (GRADES_BY_SCHOOL[sc.slug] ?? []).includes(grade)) ?? schools[0] ?? null
+  const planSchool   = schools.find(sc => sc.id === subjects.find(x => x.id === subjectId)?.school_id) ?? gradeSchool
+  const schoolName   = planSchool?.name ?? ''
+  const showScreenTime = screenTimeEnabled && !!planSchool && hasFeature(planSchool.slug, 'screenTime')
+
   const refreshScreenUsage = () => {
     if (!showScreenTime || !onLoadScreenUsage) return
-    onLoadScreenUsage(grade, weekStart).then(setScreenUsage)
+    onLoadScreenUsage(grade, weekStart, planSchool?.id).then(setScreenUsage)
   }
-  useEffect(refreshScreenUsage, [showScreenTime, grade, weekStart]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(refreshScreenUsage, [showScreenTime, grade, weekStart, planSchool?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pantallas ya usadas por los demás planes del grado esta semana (excluye este mismo plan)
   const otherScreen   = (screenUsage ?? []).filter(u => !(u.subject_id === subjectId && u.teacher_id === userId))
@@ -203,13 +224,13 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, school
   }
   const [showExport, setShowExport] = useState(false)
 
-  const gradeSubjects = subjects.filter(s => s.grade === grade)
+  const gradeSubjects = usable.filter(s => s.grade === grade)
 
-  // Reset subject when grade changes
+  // Reset subject when grade (or the list of usable subjects) changes
   useEffect(() => {
-    const list = subjects.filter(s => s.grade === grade)
-    setSubjectId(list[0]?.id || '')
-  }, [grade, subjects])
+    const list = usable.filter(s => s.grade === grade)
+    setSubjectId(prev => list.some(s => s.id === prev) ? prev : (list[0]?.id || ''))
+  }, [grade, usableKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load plan when subject/week changes
   useEffect(() => {
@@ -297,11 +318,19 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, school
 
         {/* Subject */}
         <div className="flex-1 min-w-[200px]">
-          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Materia</label>
+          <div className="flex items-baseline justify-between mb-1.5">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Materia</label>
+            {canRestrict && (
+              <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer" title="Para casos excepcionales, p. ej. un reemplazo">
+                <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} className="accent-green-700" />
+                Ver todas las materias
+              </label>
+            )}
+          </div>
           <select value={subjectId} onChange={e => setSubjectId(e.target.value)}
             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-600">
             {gradeSubjects.length === 0
-              ? <option value="">Sin materias — agregar desde Administrar</option>
+              ? <option value="">{noAssigned ? 'Sin materias asignadas' : 'Sin materias — agregar desde Administrar'}</option>
               : gradeSubjects.map(s => <option key={s.id} value={s.id}>{s.label}</option>)
             }
           </select>
@@ -508,6 +537,16 @@ export default function LessonPlan({ plans, subjects, onSave, schoolSlug, school
               </button>
             </div>
           </div>
+        </div>
+      ) : noAssigned ? (
+        <div className="bg-amber-50 rounded-2xl border border-amber-200 py-12 px-6 text-center">
+          <Info size={22} className="text-amber-500 mx-auto mb-2" />
+          <p className="font-semibold text-amber-900">El admin aún no ha asignado tus materias</p>
+          <p className="text-sm text-amber-800/80 mt-1">Cuando lo haga, aquí aparecerán solo las materias que dictas.</p>
+          <button onClick={() => setShowAll(true)}
+            className="mt-4 px-4 py-2 rounded-xl text-sm font-bold text-amber-900 border border-amber-300 hover:bg-amber-100">
+            Ver todas las materias del grado
+          </button>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-100 py-16 text-center text-slate-400">

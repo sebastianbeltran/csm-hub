@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, BookOpen, GraduationCap, Link2, LogOut, ShieldCheck, Settings, CalendarClock } from 'lucide-react'
+import { LayoutDashboard, BookOpen, GraduationCap, Link2, LogOut, Settings, CalendarClock } from 'lucide-react'
 
 const ROLE_LABELS = {
   super_admin: { label: 'Super admin',   cls: 'bg-amber-900 text-amber-300'  },
@@ -95,8 +95,8 @@ function LoggedIn({ role, fullName, onLogout }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2.5 px-1">
-        <div className="w-8 h-8 rounded-full bg-green-700 flex items-center justify-center flex-shrink-0">
-          <ShieldCheck size={14} className="text-white" />
+        <div className="w-8 h-8 rounded-full bg-green-700 flex items-center justify-center flex-shrink-0 text-sm font-bold text-white">
+          {(fullName || '?').trim().charAt(0).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
           {fullName && <p className="text-xs font-semibold text-white truncate">{fullName}</p>}

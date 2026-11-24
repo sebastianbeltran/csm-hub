@@ -205,6 +205,65 @@ límite de pantallas (EC/Primary) y notificaciones en la app. Todo en `develop`;
 
 ---
 
+## ✅ PROGRESO — SESIÓN 24 NOV 2026 (desde el Mac)
+
+**Resumen:** tareas 1, 2 y 3 de "Próxima sesión" (no requieren usuarios reales). En `develop`, sin commit aún.
+
+**Admin → pestaña "Usuarios"** (`src/components/UsersAdmin.jsx`; oculta para director)
+- Lista usuarios de la escuela activa + **pendientes** (se registraron con Google y aún no tienen escuela).
+  Buscador, filtros Todos / Pendientes / Activos / Inactivos, aviso "N usuarios esperan activación".
+- Activar / editar: nombre, rol (docente, director, counselor, admin), escuela (solo super_admin elige),
+  cuenta activa, y **materias asignadas** (`teacher_subjects`) agrupadas por grado.
+  Si se cambia de escuela, se quitan las materias anteriores. Desactivar pide confirmación en el botón.
+- Guarda con la RPC `admin_save_user` (perfil + materias en una sola operación, valida permisos en Supabase):
+  el admin solo edita gente de su escuela o pendientes, no se edita a sí mismo, no toca super_admins.
+- "Último acceso": `useAuth` actualiza `profiles.last_login` al entrar (máx. 1 vez por hora).
+
+**Lesson plan — solo mis materias**
+- Un docente ve solo sus materias asignadas (y solo los grados donde tiene materias).
+- Sin asignaciones: aviso "El admin aún no ha asignado tus materias" + botón "Ver todas las materias del grado".
+- Casilla "Ver todas las materias" para casos excepcionales (reemplazos). Admin/director sin asignaciones ven todo.
+
+**Limpieza:** eliminado `src/components/Login.jsx` (no se usaba). Sidebar: inicial del nombre en vez del ícono.
+
+**🔒 Seguridad (encontrado hoy):** `profiles_update_own` permitía que cualquier usuario se cambiara el rol
+(p. ej. a super_admin) o se activara solo desde la consola del navegador. Se corrige con el trigger
+`trg_protect_profile_fields`. También `teacher_subjects_write_admin` dejaba a un admin asignar materias en otras escuelas.
+
+**SQL ejecutado en staging (24 nov):** `supabase-migrations/2026-11-24_gestion_usuarios.sql` — verificado (b1..b6 = true).
+💡 Para pegar SQL sin errores: `pbcopy < archivo.sql` y Cmd+V en el editor vacío (copiar desde el chat arrastraba texto).
+
+**Docentes en varias escuelas** (decisión del 24 nov: quien dicta en 2 escuelas ve TODO lo de ambas)
+- Escuelas de una persona = escuela principal (`profiles.school_id`) + escuelas de sus materias (`teacher_subjects`).
+  Funciones `user_school_ids(uuid)` / `get_my_school_ids()`; no hay tabla aparte.
+- Lectura unificada: materias, eventos, eventos del horario, planes del grado, enlaces y módulos
+  (vigilancias/counseling/pantallas) de todas sus escuelas. El plan se guarda con la escuela de la materia.
+- Plan Semanal: grados de todas sus escuelas (p. ej. 7°–11°); límite de pantallas según la escuela de la materia.
+- Vistas personales (Dashboard, Plan Semanal, Horario, Enlaces, Counseling) usan SIEMPRE todas mis escuelas.
+  El selector de la barra amarilla ahora dice **"Administrar"** (las 4 escuelas; por defecto la principal del perfil) y solo
+  cambia qué escuela se ve en Administración. Decisión del 24 nov: "si dicto 7 a 11, que me salgan todos y ya".
+  El horario personal usa el timbre de la escuela principal del perfil.
+- Admin (calendario, materias, timbre, enlaces, usuarios) sigue siendo de la escuela principal / la de "Ver como".
+- Usuarios: la lista incluye a quien dicta en esta escuela aunque su principal sea otra (insignias "Principal: HS", "+MS").
+  Las materias se asignan **por escuela** (guardar en Middle no borra las de High). Rol/estado: solo el admin de la principal.
+  Super_admin: casilla "Mostrar también usuarios de otras escuelas" para dar el primer vínculo
+  (el admin de Middle no ve a un docente de High hasta que tenga una materia de Middle).
+- Avisos: un evento de Middle para 7A llega al docente aunque su horario esté guardado en High.
+- Horario semanal: sigue usando el timbre de la escuela principal (cursos de otra escuela con su sigla).
+- SQL ejecutado en staging (24 nov): `supabase-migrations/2026-11-24_docentes_multi_escuela.sql` — verificado (4 en true).
+  Reemplaza `admin_save_user` (ahora 7 parámetros, con `p_scope`).
+
+**Pendientes de esta sesión**
+- [x] Ejecutar el SQL de arriba en staging.
+- [x] Ejecutar `2026-11-24_docentes_multi_escuela.sql`.
+- [ ] Probar: darte materias de 7°–8° (Middle) y ver Dashboard/Plan con ambas escuelas.
+- [ ] ¿Timbre distinto por escuela en el horario de un docente multi-escuela? Hoy usa solo el de la principal.
+- [ ] Probar en el navegador: Admin → Usuarios → asignarse materias a uno mismo (super_admin) → Plan Semanal muestra solo esas.
+- [ ] Con usuarios de prueba (tarea 3 vieja): activar un pendiente como admin de escuela; confirmar que un docente
+      no puede cambiarse el rol (`update profiles set role='admin'` desde el cliente debe fallar).
+
+---
+
 ## 🔜 PRÓXIMA SESIÓN — Por dónde arrancar
 
 **Prioridad actualizada (23 nov):** la tarea 2 ("Usuarios") ahora es clave: sin materias asignadas
@@ -213,17 +272,17 @@ no se pueden probar las notificaciones. Orden sugerido: 3 → 2 → 1, luego la 
 del 23 nov (pruebas de pantallas, notificaciones, timbres de las otras escuelas).
 
 ```
-[ ] 1. LessonPlan.jsx: mostrar solo las materias asignadas al docente (tabla teacher_subjects)
+[x] 1. LessonPlan.jsx: mostrar solo las materias asignadas al docente (tabla teacher_subjects)
        - Si no tiene materias asignadas: banner "El admin aún no ha asignado tus materias"
        - Toggle "Ver todas las materias del grado" para casos excepcionales
-[ ] 2. AdminPanel: tab "Usuarios" para activar docentes y asignarles escuela + materias
+[x] 2. AdminPanel: tab "Usuarios" para activar docentes y asignarles escuela + materias
        - Lista de usuarios pendientes (active = false)
        - Formulario: asignar school_id y materias (teacher_subjects)
 [ ] 3. Crear usuarios de prueba en staging:
        - director@test.com (rol director, High School)
        - docente@test.com (rol docente, High School, con materias asignadas)
-[ ] 4. Eliminar Login.jsx (modal viejo, ya no se usa)
-[ ] 5. Sidebar: reemplazar ícono genérico por inicial del nombre del usuario
+[x] 4. Eliminar Login.jsx (modal viejo, ya no se usa)
+[x] 5. Sidebar: reemplazar ícono genérico por inicial del nombre del usuario
 ```
 
 **Usuarios de prueba pendientes** (staging → Authentication → Users → Add user → "Auto Confirm User",

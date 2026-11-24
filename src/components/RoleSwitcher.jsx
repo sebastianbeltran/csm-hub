@@ -10,7 +10,8 @@ const ROLE_NAMES = {
 }
 
 // Barra visible solo para el super_admin: permite ver la app como la vería
-// cada rol en cada escuela. No cambia los permisos reales en la base de datos.
+// cada rol y elegir qué escuela administrar. Las vistas personales (Dashboard, Plan,
+// Horario) siempre muestran todas las escuelas del usuario. No cambia los permisos reales.
 export default function RoleSwitcher({ previewRole, onChangeRole, schools, schoolId, onChangeSchool }) {
   return (
     <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-6 py-2 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -42,13 +43,13 @@ export default function RoleSwitcher({ previewRole, onChangeRole, schools, schoo
 
       <label className="flex items-center gap-1.5 text-xs font-semibold text-amber-800">
         <School size={14} />
-        Escuela
+        Administrar
         <select
           value={schoolId ?? ''}
           onChange={e => onChangeSchool(e.target.value)}
           className="ml-1 px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
         >
-          {!schoolId && <option value="">Sin escuela</option>}
+          {!schoolId && <option value="">Elegir escuela</option>}
           {schools.map(s => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}

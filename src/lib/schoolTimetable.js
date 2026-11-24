@@ -64,7 +64,7 @@ export const courseGrade = (course) => {
   return 'special'
 }
 
-const SCHOOL_ABBR = {
+export const SCHOOL_ABBR = {
   early_childhood: 'EC',
   primary_school:  'PS',
   middle_school:   'MS',

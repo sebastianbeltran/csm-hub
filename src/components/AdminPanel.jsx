@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { Plus, Trash2, Calendar, BookOpen, Pencil, X, Eye, Upload, CheckCircle, AlertCircle, LogIn, ShieldAlert, Link2, ArrowUp, ArrowDown, ExternalLink, CalendarClock, Bell } from 'lucide-react'
+import { Plus, Trash2, Calendar, BookOpen, Pencil, X, Eye, Upload, CheckCircle, AlertCircle, LogIn, ShieldAlert, Link2, ArrowUp, ArrowDown, ExternalLink, CalendarClock, Bell, Users } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { CATEGORY_STYLES } from '../data/constants'
@@ -8,6 +8,7 @@ import { hostOf } from '../lib/links'
 import { getSchoolGrades, gradeLabel } from '../lib/schoolGrades'
 import seedLinks from '../data/enlaces.json'
 import TimetableAdmin from './TimetableAdmin'
+import UsersAdmin from './UsersAdmin'
 
 const PRIORITIES = [
   { value: 'high',   label: 'Alta'  },
@@ -16,7 +17,7 @@ const PRIORITIES = [
 ]
 const emptyEvent = { title: '', description: '', date: '', category: 'academico', priority: 'medium' }
 
-export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, scheduleEvents, onAddScheduleEvent, onUpdateScheduleEvent, onDeleteScheduleEvent, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias = true, schoolSlug, role, onRequestLogin, timetable, onSaveTimetable, onListTeachers, onLoadTeacherSchedule, onSaveTeacherSchedule }) {
+export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, scheduleEvents, onAddScheduleEvent, onUpdateScheduleEvent, onDeleteScheduleEvent, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias = true, schoolSlug, role, onRequestLogin, timetable, onSaveTimetable, onListTeachers, onLoadTeacherSchedule, onSaveTeacherSchedule, onListUsers, onSaveUser, schools, schoolId, isSuperAdmin, currentUserId }) {
   if (!role) return <LoginRequired onRequestLogin={onRequestLogin} />
   if (!['admin', 'super_admin', 'director'].includes(role)) return <AccessDenied />
 
@@ -34,6 +35,8 @@ export default function AdminPanel({ events, subjects, onAddEvent, onUpdateEvent
       role={role}
       timetable={timetable} onSaveTimetable={onSaveTimetable}
       onListTeachers={onListTeachers} onLoadTeacherSchedule={onLoadTeacherSchedule} onSaveTeacherSchedule={onSaveTeacherSchedule}
+      onListUsers={onListUsers} onSaveUser={onSaveUser}
+      schools={schools} schoolId={schoolId} isSuperAdmin={isSuperAdmin} currentUserId={currentUserId}
     />
   )
 }
@@ -72,7 +75,7 @@ function AccessDenied() {
 }
 
 /* ─── Admin Content ──────────────────────────────────── */
-function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, scheduleEvents, onAddScheduleEvent, onUpdateScheduleEvent, onDeleteScheduleEvent, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias, schoolSlug, role, timetable, onSaveTimetable, onListTeachers, onLoadTeacherSchedule, onSaveTeacherSchedule }) {
+function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEvent, onAddSubject, onDeleteSubject, scheduleEvents, onAddScheduleEvent, onUpdateScheduleEvent, onDeleteScheduleEvent, onSaveVigilancias, onLoadVigilancias, links, onSaveLinks, showVigilancias, schoolSlug, role, timetable, onSaveTimetable, onListTeachers, onLoadTeacherSchedule, onSaveTeacherSchedule, onListUsers, onSaveUser, schools, schoolId, isSuperAdmin, currentUserId }) {
   const isDirector = role === 'director'
   const [selectedTab, setTab] = useState(isDirector ? 'horario' : 'events')
   const tab = selectedTab === 'vigilancias' && !showVigilancias ? 'events' : selectedTab
@@ -83,6 +86,7 @@ function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEve
         {!isDirector && <TabBtn active={tab === 'events'}   onClick={() => setTab('events')}   icon={<Calendar size={14} />}     label="Calendario"  />}
         <TabBtn active={tab === 'horario'}     onClick={() => setTab('horario')}     icon={<CalendarClock size={14} />} label="Horario"     />
         {!isDirector && <TabBtn active={tab === 'timbre'} onClick={() => setTab('timbre')} icon={<Bell size={14} />} label="Timbre y horarios" />}
+        {!isDirector && <TabBtn active={tab === 'usuarios'} onClick={() => setTab('usuarios')} icon={<Users size={14} />}  label="Usuarios"    />}
         {!isDirector && <TabBtn active={tab === 'subjects'} onClick={() => setTab('subjects')} icon={<BookOpen size={14} />}     label="Materias"    />}
         {!isDirector && showVigilancias && <TabBtn active={tab === 'vigilancias'} onClick={() => setTab('vigilancias')} icon={<Eye size={14} />} label="Vigilancias" />}
         {!isDirector && <TabBtn active={tab === 'enlaces'}  onClick={() => setTab('enlaces')}  icon={<Link2 size={14} />}        label="Enlaces"     />}
@@ -94,6 +98,11 @@ function AdminContent({ events, subjects, onAddEvent, onUpdateEvent, onDeleteEve
         <TimetableAdmin key={schoolSlug ?? 'none'}
           timetable={timetable} schoolSlug={schoolSlug} onSaveTimetable={onSaveTimetable}
           onListTeachers={onListTeachers} onLoadTeacherSchedule={onLoadTeacherSchedule} onSaveTeacherSchedule={onSaveTeacherSchedule} />
+      )}
+      {tab === 'usuarios'    && (
+        <UsersAdmin onListUsers={onListUsers} onSaveUser={onSaveUser} subjects={subjects}
+          schools={schools ?? []} schoolId={schoolId} schoolSlug={schoolSlug}
+          isSuperAdmin={isSuperAdmin} currentUserId={currentUserId} />
       )}
       {tab === 'subjects'    && <SubjectsTab schoolSlug={schoolSlug} subjects={subjects} onAdd={onAddSubject} onDelete={onDeleteSubject} />}
       {tab === 'vigilancias' && <ViglanciasTab onSave={onSaveVigilancias} onLoad={onLoadVigilancias} />}

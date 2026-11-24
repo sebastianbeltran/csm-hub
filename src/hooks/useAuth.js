@@ -29,6 +29,11 @@ export function useAuth() {
   const fetchProfile = useCallback(async (userId) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
     setProfile(data ?? null)
+    // "Último acceso" en Admin → Usuarios (máximo una vez por hora; fire-and-forget)
+    const last = data?.last_login ? new Date(data.last_login).getTime() : 0
+    if (data && Date.now() - last > 60 * 60 * 1000) {
+      supabase.from('profiles').update({ last_login: new Date().toISOString() }).eq('id', userId).then(() => {})
+    }
   }, [])
 
   useEffect(() => {
@@ -88,6 +93,8 @@ export function useAuth() {
     isSuperAdmin,
     schoolId,
     previewRole: isSuperAdmin ? (previewRole ?? 'super_admin') : null,
+    // Escuela elegida en "Ver como" (null = "Mis escuelas": todas las del usuario)
+    previewSchoolId: isSuperAdmin ? (previewSchoolId ?? null) : null,
     setPreviewRole,
     setPreviewSchoolId,
     fullName:    profile?.full_name ?? null,
